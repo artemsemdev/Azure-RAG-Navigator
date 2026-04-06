@@ -43,3 +43,19 @@ appsettings.*.local.json
 TestResults/
 coverage/
 *.trx
+
+## Terraform
+infra/.terraform/
+infra/**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+backend.tfvars
+*.auto.tfvars
+crash.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
