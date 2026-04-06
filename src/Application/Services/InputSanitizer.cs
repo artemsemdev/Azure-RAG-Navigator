@@ -58,12 +58,10 @@ public static partial class InputSanitizer
         cleaned = cleaned.Trim();
 
         // Step 4: Detect prompt injection patterns
-        var matchedPatterns = new List<string>();
-        foreach (var pattern in CompiledPatterns)
-        {
-            if (pattern.IsMatch(cleaned))
-                matchedPatterns.Add(pattern.ToString());
-        }
+        var matchedPatterns = CompiledPatterns
+            .Where(p => p.IsMatch(cleaned))
+            .Select(p => p.ToString())
+            .ToList();
 
         return new SanitizationResult(cleaned, matchedPatterns.Count > 0, matchedPatterns);
     }

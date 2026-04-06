@@ -68,7 +68,7 @@ public class WebSecurityTests : IClassFixture<WebSecurityTests.TestWebFactory>
     [Fact]
     public async Task ChatApi_RejectsFormUrlEncodedContentType()
     {
-        var content = new StringContent(
+        using var content = new StringContent(
             "question=hello",
             System.Text.Encoding.UTF8,
             "application/x-www-form-urlencoded");
@@ -168,7 +168,7 @@ public class WebSecurityTests : IClassFixture<WebSecurityTests.TestWebFactory>
     [Fact]
     public async Task ReindexApi_RejectsWrongAdminKey()
     {
-        var request = new HttpRequestMessage(HttpMethod.Post, "/api/index/reindex");
+        using var request = new HttpRequestMessage(HttpMethod.Post, "/api/index/reindex");
         request.Headers.Add("X-Admin-Key", "wrong-key");
 
         var response = await _client.SendAsync(request);
@@ -179,7 +179,7 @@ public class WebSecurityTests : IClassFixture<WebSecurityTests.TestWebFactory>
     [Fact]
     public async Task ReindexApi_AcceptsCorrectAdminKey()
     {
-        var request = new HttpRequestMessage(HttpMethod.Post, "/api/index/reindex");
+        using var request = new HttpRequestMessage(HttpMethod.Post, "/api/index/reindex");
         request.Headers.Add("X-Admin-Key", "test-admin-key");
 
         var response = await _client.SendAsync(request);
