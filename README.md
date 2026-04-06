@@ -1,7 +1,7 @@
 # RAG Navigator
 
-[![CI](https://github.com/artemsemdev/RAG-Navigator/actions/workflows/ci.yml/badge.svg)](https://github.com/artemsemdev/RAG-Navigator/actions/workflows/ci.yml)
-[![CodeQL](https://github.com/artemsemdev/RAG-Navigator/actions/workflows/codeql.yml/badge.svg)](https://github.com/artemsemdev/RAG-Navigator/actions/workflows/codeql.yml)
+[![CI](https://github.com/artemsemdev/RAG-Navigator/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/artemsemdev/RAG-Navigator/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/artemsemdev/RAG-Navigator/actions/workflows/codeql.yml/badge.svg?branch=master)](https://github.com/artemsemdev/RAG-Navigator/actions/workflows/codeql.yml)
 
 **Engineering Knowledge Assistant** — A code-first Retrieval-Augmented Generation (RAG) application built with .NET, Azure OpenAI, and Azure AI Search.
 
