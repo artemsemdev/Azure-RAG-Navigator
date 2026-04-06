@@ -190,7 +190,74 @@ public class RagOrchestratorTests
         await _chatService.Received(1).GenerateAnswerAsync(Arg.Any<string>(), Arg.Any<string>(), token);
     }
 
-    private static RetrievalResult MakeResult(string fileName, string section, string content, double score)
+    [Fact]
+    public async Task AskAsync_WithDebugInfo_IncludesRerankerScoreAndCaption()
+    {
+        // Arrange
+        var question = "What is the deployment process?";
+        var results = new List<RetrievalResult>
+        {
+            MakeResult("deploy.md", "Steps", "Run kubectl apply.", 0.88,
+                rerankerScore: 2.45, caption: "Deploy using kubectl apply command"),
+            MakeResult("ci.md", "Pipeline", "Pipeline triggers on merge.", 0.75,
+                rerankerScore: 1.82, caption: null)
+        };
+
+        _embeddingService.GenerateEmbeddingAsync(question, Arg.Any<CancellationToken>())
+            .Returns(FakeEmbedding);
+        _retrievalService.SearchAsync(question, Arg.Any<ReadOnlyMemory<float>>(), 5, Arg.Any<CancellationToken>())
+            .Returns(results);
+        _chatService.GenerateAnswerAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns("Deploy with kubectl [Source: deploy.md].");
+
+        // Act
+        var response = await _orchestrator.AskAsync(question, includeDebugInfo: true);
+
+        // Assert
+        Assert.NotNull(response.Debug);
+        Assert.Equal(2, response.Debug.RetrievedChunks.Count);
+
+        var first = response.Debug.RetrievedChunks[0];
+        Assert.Equal(2.45, first.RerankerScore);
+        Assert.Equal("Deploy using kubectl apply command", first.Caption);
+
+        var second = response.Debug.RetrievedChunks[1];
+        Assert.Equal(1.82, second.RerankerScore);
+        Assert.Null(second.Caption);
+    }
+
+    [Fact]
+    public async Task AskAsync_ZeroRerankerScore_StillReturnsResults()
+    {
+        // Arrange — semantic ranking unavailable, reranker score defaults to 0
+        var question = "How do backups work?";
+        var results = new List<RetrievalResult>
+        {
+            MakeResult("backup.md", "Backups", "Daily snapshots.", 0.70,
+                rerankerScore: 0, caption: null)
+        };
+
+        _embeddingService.GenerateEmbeddingAsync(question, Arg.Any<CancellationToken>())
+            .Returns(FakeEmbedding);
+        _retrievalService.SearchAsync(question, Arg.Any<ReadOnlyMemory<float>>(), 5, Arg.Any<CancellationToken>())
+            .Returns(results);
+        _chatService.GenerateAnswerAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns("Daily snapshots [Source: backup.md].");
+
+        // Act
+        var response = await _orchestrator.AskAsync(question, includeDebugInfo: true);
+
+        // Assert — pipeline completes normally even without reranker scores
+        Assert.NotNull(response.Debug);
+        Assert.Single(response.Debug.RetrievedChunks);
+        Assert.Equal(0, response.Debug.RetrievedChunks[0].RerankerScore);
+        Assert.Null(response.Debug.RetrievedChunks[0].Caption);
+        Assert.Contains("backup.md", response.Citations.Select(c => c.FileName));
+    }
+
+    private static RetrievalResult MakeResult(
+        string fileName, string section, string content, double score,
+        double rerankerScore = 0, string? caption = null)
     {
         return new RetrievalResult
         {
@@ -204,7 +271,9 @@ public class RagOrchestratorTests
                 ChunkIndex = 0,
                 Content = content
             },
-            Score = score
+            Score = score,
+            RerankerScore = rerankerScore,
+            Caption = caption
         };
     }
 }

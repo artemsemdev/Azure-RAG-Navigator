@@ -14,7 +14,8 @@ namespace RAGNavigator.Infrastructure.Search;
 /// - Vector similarity search on the ContentVector field for semantic matching
 ///
 /// Azure AI Search uses Reciprocal Rank Fusion (RRF) to merge results from both
-/// retrieval methods, giving us the benefits of both approaches without manual tuning.
+/// retrieval methods. Semantic ranking (L2) then re-scores the top results using
+/// a deep learning model for improved relevance.
 /// </summary>
 public sealed class AzureSearchRetrievalService : IRetrievalService
 {
@@ -45,7 +46,12 @@ public sealed class AzureSearchRetrievalService : IRetrievalService
                 "ChunkId", "DocumentId", "DocumentTitle",
                 "FileName", "Section", "ChunkIndex", "Content"
             },
-            QueryType = SearchQueryType.Simple
+            QueryType = SearchQueryType.Semantic,
+            SemanticSearch = new SemanticSearchOptions
+            {
+                SemanticConfigurationName = "semantic-config",
+                QueryCaption = new QueryCaption(QueryCaptionType.Extractive)
+            }
         };
 
         // Add vector query for semantic similarity
@@ -65,10 +71,15 @@ public sealed class AzureSearchRetrievalService : IRetrievalService
 
         await foreach (var result in response.Value.GetResultsAsync())
         {
+            var captions = result.SemanticSearch?.Captions;
+            var caption = captions is { Count: > 0 } ? captions[0] : null;
+
             results.Add(new RetrievalResult
             {
                 Chunk = MapToChunk(result.Document),
-                Score = result.Score ?? 0
+                Score = result.Score ?? 0,
+                RerankerScore = result.SemanticSearch?.RerankerScore ?? 0,
+                Caption = caption?.Text
             });
         }
 

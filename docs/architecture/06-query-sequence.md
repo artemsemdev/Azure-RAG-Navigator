@@ -29,12 +29,12 @@ sequenceDiagram
     AOAI-->>ES: float[1536]
     ES-->>RO: queryEmbedding
 
-    Note over RO: Step 2: Hybrid retrieval
+    Note over RO: Step 2: Hybrid retrieval + semantic re-ranking
     RO->>RS: SearchAsync(question, queryEmbedding, topK=5)
-    RS->>AIS: Hybrid query (text + vector)
-    Note over AIS: BM25 keyword search<br/>+ HNSW vector search<br/>merged by RRF
-    AIS-->>RS: Ranked results
-    RS-->>RO: RetrievalResult[] (chunks + scores)
+    RS->>AIS: Hybrid query (text + vector + semantic)
+    Note over AIS: BM25 keyword search<br/>+ HNSW vector search<br/>merged by RRF<br/>→ Semantic re-ranking (L2)
+    AIS-->>RS: Re-ranked results + captions
+    RS-->>RO: RetrievalResult[] (chunks + scores + rerankerScore)
 
     Note over RO: Step 3: Filter low-relevance results
     RO->>RO: Filter by minimum score threshold
@@ -58,7 +58,7 @@ sequenceDiagram
     UI-->>User: Rendered answer + citations panel
 
     opt Debug Mode Enabled
-        UI->>UI: Render debug panel with<br/>chunks, scores, full prompt
+        UI->>UI: Render debug panel with<br/>chunks, scores, reranker scores,<br/>captions, full prompt
     end
 ```
 
@@ -67,7 +67,7 @@ sequenceDiagram
 | Step | Typical Duration | Notes |
 |------|-----------------|-------|
 | Query embedding | 100-300ms | Single text → 1536-dim vector |
-| Hybrid search | 50-150ms | Depends on index size and query complexity |
+| Hybrid search + semantic ranking | 50-250ms | Includes L2 semantic re-ranking |
 | Score filtering | < 1ms | In-memory filter |
 | Prompt construction | < 1ms | String concatenation |
 | LLM generation | 1.5-4s | Dominant latency; depends on answer length |

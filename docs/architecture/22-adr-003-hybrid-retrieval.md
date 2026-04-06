@@ -1,6 +1,6 @@
-# ADR-003: Hybrid Retrieval (Keyword + Vector)
+# ADR-003: Hybrid Retrieval with Semantic Ranking
 
-**Status:** Accepted
+**Status:** Accepted (updated with semantic ranking)
 **Date:** 2024-03-01
 **Context:** RAG Navigator — choosing the retrieval strategy
 
@@ -94,21 +94,35 @@ var response = await _searchClient.SearchAsync<T>(queryText, searchOptions);
 |-------------|---------|
 | **Keyword-only** | Fails on paraphrased or conceptual questions. Users would need to know the exact terminology in the documents. |
 | **Vector-only** | Fails on exact term matches, acronyms, and error codes. Engineering documents heavily use specific terms. |
-| **Hybrid + Semantic Ranker** | Better quality but requires Azure AI Search Standard tier ($250/month vs. $75/month for Basic). Noted as a future improvement. |
+| **Hybrid without Semantic Ranker** | Simpler but misses the L2 re-ranking benefit. Semantic ranking is now available on the free tier of Basic SKU (1000 queries/month). |
 
-## Future Improvement: Semantic Ranker
+## Semantic Ranking (L2 Re-Ranking)
 
-Azure AI Search offers a semantic ranker that provides an L2 re-ranking step on top of hybrid search:
+Azure AI Search's semantic ranker provides an L2 re-ranking step on top of hybrid search:
 
 ```
 Hybrid (BM25 + Vector) → RRF → Top-50 → Semantic Ranker → Top-5
 ```
 
-This uses a Microsoft-trained cross-encoder model to re-rank results with deep language understanding. Adding it is a one-line change:
+This uses a Microsoft-trained cross-encoder model to re-rank results with deep language understanding. The semantic ranker is configured with:
+
+- **Title field:** `DocumentTitle` — helps the model understand what each chunk is about.
+- **Content field:** `Content` — the main text used for deep comprehension.
+- **Keywords field:** `Section` — section headings provide additional topical signals.
 
 ```csharp
 searchOptions.QueryType = SearchQueryType.Semantic;
-searchOptions.SemanticSearch = new SemanticSearchOptions { SemanticConfigurationName = "default" };
+searchOptions.SemanticSearch = new SemanticSearchOptions
+{
+    SemanticConfigurationName = "semantic-config",
+    QueryCaption = new QueryCaption(QueryCaptionType.Extractive)
+};
 ```
 
-This is the recommended next step for improving retrieval quality beyond hybrid search.
+### Extractive Captions
+
+Semantic ranking also produces extractive captions — short passages that the model identifies as most relevant to the query. These are surfaced in the debug panel alongside the reranker score (`@search.rerankerScore`).
+
+### Cost
+
+Semantic ranking is available at the **free tier** on Basic SKU (1000 queries/month). For higher volumes, the Standard semantic SKU is available.

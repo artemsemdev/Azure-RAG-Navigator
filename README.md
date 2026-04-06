@@ -72,7 +72,7 @@ graph TB
 
 **Query Pipeline:**
 ```
-User Question → Embed Query → Hybrid Search (keyword + vector, RRF fusion) → Grounded Prompt → LLM Answer → Citations
+User Question → Embed Query → Hybrid Search (keyword + vector, RRF fusion) → Semantic Re-Ranking (L2) → Grounded Prompt → LLM Answer → Citations
 ```
 
 **Ingestion Pipeline:**
@@ -86,13 +86,13 @@ Files (.md/.txt) → Heading-aware Chunking → Batch Embedding → Index Schema
 |----------|-----------|-----|
 | **Modular monolith** | Right-sized for scope; clean internal boundaries without distributed system complexity | [ADR-001](docs/architecture/20-adr-001-modular-monolith.md) |
 | **Code-first RAG** | Direct SDK usage makes every pipeline step visible and explainable | [ADR-002](docs/architecture/21-adr-002-classic-rag.md) |
-| **Hybrid retrieval** | BM25 keyword + HNSW vector, merged by RRF — captures both exact terms and semantic similarity | [ADR-003](docs/architecture/22-adr-003-hybrid-retrieval.md) |
+| **Hybrid retrieval + semantic ranking** | BM25 keyword + HNSW vector, merged by RRF, re-ranked by semantic ranker (L2) | [ADR-003](docs/architecture/22-adr-003-hybrid-retrieval.md) |
 | **Docs as corpus** | Architecture docs are indexed so the system can answer questions about its own design | [ADR-004](docs/architecture/23-adr-004-docs-as-corpus.md) |
 
 ## Features
 
 - **Document ingestion** — markdown-aware semantic chunking (heading-split, 1500-char max, 200-char overlap)
-- **Hybrid retrieval** — BM25 keyword + HNSW vector search, merged by Reciprocal Rank Fusion
+- **Hybrid retrieval + semantic ranking** — BM25 keyword + HNSW vector search, merged by Reciprocal Rank Fusion, re-ranked by Azure AI Search semantic ranker
 - **Grounded answers** — explicit citations with source file, section, and evidence snippets
 - **Debug mode** — inspect retrieved chunks, relevance scores, and the full prompt
 - **Architecture pages** — built-in UI for architecture overview, ADRs, and operational runbook
@@ -251,8 +251,8 @@ See [Well-Architected Review](docs/architecture/24-well-architected-review.md) f
 ### Chunking
 Heading-aware markdown splitting: split on `##`/`###` boundaries, sub-split large sections on paragraphs, apply 200-char overlap. Each chunk retains source file, section heading, and sequence index.
 
-### Hybrid Search
-BM25 keyword search + HNSW vector search, merged by Azure AI Search's Reciprocal Rank Fusion. Keyword catches exact terms and acronyms; vector catches semantic similarity and paraphrasing.
+### Hybrid Search + Semantic Ranking
+BM25 keyword search + HNSW vector search, merged by Azure AI Search's Reciprocal Rank Fusion, then re-ranked by Azure AI Search's semantic ranker (L2). Keyword catches exact terms and acronyms; vector catches semantic similarity and paraphrasing; semantic ranking uses deep language understanding to promote the most relevant results. Extractive captions and reranker scores are available in the debug panel.
 
 ### Grounding
 The system prompt restricts answers to provided context only. Temperature is set to 0.1. The LLM is instructed to cite sources using `[Source: filename]` format, and to say "not enough information" when evidence is insufficient.
@@ -289,7 +289,7 @@ Plus 26 architecture documents in `docs/architecture/` covering solution design,
 
 | Enhancement | Complexity | Value |
 |-------------|-----------|-------|
-| Semantic ranker | Low | L2 re-ranking for better relevance |
+| ~~Semantic ranker~~ | ~~Low~~ | ~~L2 re-ranking for better relevance~~ ✅ Done |
 | Application Insights | Low | Automatic telemetry |
 | Health check endpoints | Low | Orchestrator probes |
 | SSE streaming | Medium | Better perceived latency |

@@ -23,10 +23,10 @@
 | SKU | Monthly Cost | Included |
 |-----|-------------|----------|
 | Free | $0 | 50MB, 3 indexes, no replicas, no semantic ranker |
-| Basic | ~$75/month | 2GB, 15 indexes, 3 replicas |
-| Standard S1 | ~$250/month | 25GB, 50 indexes, 12 replicas, semantic ranker |
+| Basic | ~$75/month | 2GB, 15 indexes, 3 replicas, semantic ranker (free tier: 1000 queries/month) |
+| Standard S1 | ~$250/month | 25GB, 50 indexes, 12 replicas, semantic ranker (standard tier) |
 
-**For demo:** Basic tier is sufficient. The Free tier works for development but has aggressive limits.
+**For demo:** Basic tier is sufficient. Semantic ranking is enabled at the free tier (1000 queries/month), which is more than enough for demo and small-team use. The Free tier works for development but has aggressive limits.
 
 **Key cost insight:** Azure AI Search is the only fixed monthly cost. Everything else (OpenAI, hosting) scales with usage.
 

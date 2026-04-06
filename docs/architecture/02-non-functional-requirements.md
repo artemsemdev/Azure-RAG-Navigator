@@ -27,7 +27,7 @@ This document defines the non-functional requirements for RAG Navigator, disting
 
 **Current implementation:** The dominant latency contributor is the Azure OpenAI chat completion call (typically 2-4 seconds). Embedding and search are fast. No streaming is implemented — the user waits for the full response.
 
-**Production path:** Add streaming (SSE) for token-by-token response delivery. Cache frequent query embeddings. Use Azure AI Search semantic ranker for faster re-ranking.
+**Production path:** Add streaming (SSE) for token-by-token response delivery. Cache frequent query embeddings. Semantic ranking (L2 re-ranking) is already enabled for improved retrieval relevance.
 
 ## Security
 
