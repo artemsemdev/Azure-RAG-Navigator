@@ -36,15 +36,15 @@ resource "azurerm_resource_group" "main" {
 module "openai" {
   source = "./modules/openai"
 
-  resource_group_name = azurerm_resource_group.main.name
-  location            = azurerm_resource_group.main.location
-  project             = var.project
-  environment         = var.environment
-  chat_model_name     = var.chat_model_name
-  chat_model_version  = var.chat_model_version
+  resource_group_name     = azurerm_resource_group.main.name
+  location                = azurerm_resource_group.main.location
+  project                 = var.project
+  environment             = var.environment
+  chat_model_name         = var.chat_model_name
+  chat_model_version      = var.chat_model_version
   embedding_model_name    = var.embedding_model_name
   embedding_model_version = var.embedding_model_version
-  tags                = local.tags
+  tags                    = local.tags
 }
 
 module "search" {
@@ -71,11 +71,11 @@ module "app_service" {
   tags                = local.tags
 
   app_settings = {
-    AZURE_OPENAI_ENDPOINT              = module.openai.endpoint
-    AZURE_OPENAI_CHAT_DEPLOYMENT       = module.openai.chat_deployment_name
-    AZURE_OPENAI_EMBEDDING_DEPLOYMENT  = module.openai.embedding_deployment_name
-    AZURE_SEARCH_ENDPOINT              = module.search.endpoint
-    AZURE_SEARCH_INDEX_NAME            = var.search_index_name
+    AZURE_OPENAI_ENDPOINT             = module.openai.endpoint
+    AZURE_OPENAI_CHAT_DEPLOYMENT      = module.openai.chat_deployment_name
+    AZURE_OPENAI_EMBEDDING_DEPLOYMENT = module.openai.embedding_deployment_name
+    AZURE_SEARCH_ENDPOINT             = module.search.endpoint
+    AZURE_SEARCH_INDEX_NAME           = var.search_index_name
   }
 }
 
