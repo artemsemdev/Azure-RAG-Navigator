@@ -98,6 +98,7 @@ Files (.md/.txt) → Heading-aware Chunking → Batch Embedding → Index Schema
 - **Architecture pages** — built-in UI for architecture overview, ADRs, and operational runbook
 - **Self-documenting** — the system indexes and answers questions about its own architecture
 - **Programmatic index** — search index schema created from code, not Azure Portal
+- **Security hardening** — OWASP controls: input sanitization, prompt injection detection, rate limiting, security headers, CSRF protection, admin key auth
 - **Clean architecture** — interfaces, dependency injection, three-layer separation
 
 ## Project Structure
@@ -114,6 +115,7 @@ RAGNavigator/
 │   │   ├── Search/           # Azure AI Search (index + retrieval)
 │   │   └── Configuration/    # Strongly-typed options with validation
 │   └── Web/                  # ASP.NET Core Razor Pages + Minimal API
+│       ├── Middleware/        # SecurityHeadersMiddleware
 │       └── Pages/            # Chat, Architecture, Decisions, Operations
 ├── tests/                    # xUnit tests (chunking, prompt assembly, integration)
 ├── infra/                    # Terraform IaC (Azure OpenAI + AI Search + App Service)
@@ -223,13 +225,22 @@ Click **Reindex** in the sidebar to index all documents, then ask questions.
 - **Cognitive Services OpenAI User** on the Azure OpenAI resource
 - **Search Index Data Contributor** on the Azure AI Search resource
 
-## Security Considerations
+## Security (OWASP)
 
-- **Prompt injection:** System prompt grounding + low temperature; production would add input filtering and Azure AI Content Safety
-- **Corpus integrity:** Documents are operator-controlled (file system), no user uploads
-- **Secret management:** Environment variables for dev; Key Vault + managed identity for production
-- **Transport:** HTTPS-ready; production would add private endpoints for Azure services
-- **Least privilege:** RBAC roles grant only the permissions the app needs
+| Control | Implementation |
+|---------|---------------|
+| **Prompt injection** | `InputSanitizer` (13 pattern categories) + `<user_question>` XML delimiters + system prompt hardening + low temperature |
+| **Rate limiting** | Per-IP fixed-window: 20 req/min on chat, 3 req/hour on reindex |
+| **Security headers** | CSP, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy, HSTS |
+| **CSRF protection** | Content-Type validation (JSON-only on POST endpoints) |
+| **Admin protection** | `X-Admin-Key` header required for reindex endpoint |
+| **Debug mode gating** | Disabled in production; system prompt stripped from debug output |
+| **Input sanitization** | Control character stripping, invisible Unicode removal, whitespace normalization |
+| **Error handling** | Generic error responses in production — no stack traces or Azure SDK details |
+| **Path traversal** | `SampleDataPath` validated against repo root |
+| **Corpus integrity** | Documents are operator-controlled (file system), no user uploads |
+| **Secret management** | Environment variables for dev; Key Vault + managed identity for production |
+| **Least privilege** | RBAC roles grant only the permissions the app needs |
 
 See [Security & Threat Model](docs/architecture/11-security-and-threat-model.md) for the full threat analysis.
 
