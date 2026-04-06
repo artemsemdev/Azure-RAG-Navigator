@@ -76,10 +76,10 @@ curl -X POST http://localhost:5000/api/index/reindex</code></pre>
                 </div>
                 <div class="waf-card">
                     <div class="waf-header security">Security</div>
-                    <div class="waf-score">2/5</div>
-                    <p><strong>Strength:</strong> Managed identity support built in; no hardcoded secrets.</p>
-                    <p><strong>Gap:</strong> No user auth, basic input validation, instruction-level prompt injection defense.</p>
-                    <p><strong>Next:</strong> Input length limits, Key Vault migration.</p>
+                    <div class="waf-score">3/5</div>
+                    <p><strong>Strength:</strong> Managed identity, OWASP security headers, rate limiting, input sanitization, prompt injection detection, CSRF protection, admin key auth, debug mode gating.</p>
+                    <p><strong>Gap:</strong> No user authentication (Azure AD), no Azure AI Content Safety integration.</p>
+                    <p><strong>Next:</strong> Azure AD auth, Key Vault migration, Content Safety integration.</p>
                 </div>
                 <div class="waf-card">
                     <div class="waf-header cost">Cost Optimization</div>
@@ -118,13 +118,14 @@ curl -X POST http://localhost:5000/api/index/reindex</code></pre>
                 <tbody>
                     <tr><td>Add health check endpoints</td><td>Low</td><td>Enables orchestrator probes and monitoring</td></tr>
                     <tr><td>Add Application Insights</td><td>Low</td><td>Automatic request/dependency telemetry</td></tr>
-                    <tr><td>Semantic ranker</td><td>Low</td><td>Better retrieval quality with L2 re-ranking</td></tr>
+                    <tr><td><s>Semantic ranker</s></td><td><s>Low</s></td><td>✅ Implemented — L2 re-ranking with extractive captions</td></tr>
                     <tr><td>SSE streaming</td><td>Medium</td><td>Improves perceived latency for answers</td></tr>
                     <tr><td>Azure AD authentication</td><td>Medium</td><td>User identity and access control</td></tr>
                     <tr><td>Document upload via UI</td><td>Medium</td><td>Self-service corpus management</td></tr>
                     <tr><td>Conversation memory</td><td>Medium</td><td>Multi-turn Q&A context</td></tr>
                     <tr><td>Blue-green indexing</td><td>Medium</td><td>Zero-downtime reindexing</td></tr>
-                    <tr><td>Bicep/Terraform IaC</td><td>Medium</td><td>Reproducible infrastructure</td></tr>
+                    <tr><td><s>Bicep/Terraform IaC</s></td><td><s>Medium</s></td><td>✅ Implemented — see infra/</td></tr>
+                    <tr><td>OWASP security hardening</td><td>Low-Medium</td><td>✅ Implemented — rate limiting, input sanitization, security headers, CSRF, admin auth</td></tr>
                     <tr><td>Agentic retrieval</td><td>High</td><td>Multi-step query decomposition</td></tr>
                 </tbody>
             </table>

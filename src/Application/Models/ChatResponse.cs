@@ -3,7 +3,7 @@ namespace RAGNavigator.Application.Models;
 /// <summary>
 /// The final response returned to the user, including answer, citations, and optional debug info.
 /// </summary>
-public sealed class ChatResponse
+public sealed record ChatResponse
 {
     public required string Answer { get; init; }
     public required IReadOnlyList<Citation> Citations { get; init; }
@@ -18,7 +18,7 @@ public sealed class Citation
     public required string Snippet { get; init; }
 }
 
-public sealed class DebugInfo
+public sealed record DebugInfo
 {
     public required IReadOnlyList<RetrievedChunkDebug> RetrievedChunks { get; init; }
     public required string FullPrompt { get; init; }
