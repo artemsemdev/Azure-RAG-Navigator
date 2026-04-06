@@ -50,9 +50,23 @@ public sealed class AzureSearchIndexService : ISearchIndexService
         });
         vectorSearch.Profiles.Add(new VectorSearchProfile("vector-profile", "hnsw-config"));
 
+        var semanticConfig = new SemanticConfiguration("semantic-config", new SemanticPrioritizedFields
+        {
+            TitleField = new SemanticField("DocumentTitle"),
+            ContentFields = { new SemanticField("Content") },
+            KeywordsFields = { new SemanticField("Section") }
+        });
+
+        var semanticSearch = new SemanticSearch
+        {
+            DefaultConfigurationName = "semantic-config",
+            Configurations = { semanticConfig }
+        };
+
         var index = new SearchIndex(_options.IndexName, fields)
         {
-            VectorSearch = vectorSearch
+            VectorSearch = vectorSearch,
+            SemanticSearch = semanticSearch
         };
 
         await _indexClient.CreateOrUpdateIndexAsync(index, cancellationToken: cancellationToken);

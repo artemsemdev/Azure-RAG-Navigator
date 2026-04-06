@@ -7,7 +7,7 @@ End-to-end query latency is dominated by the LLM completion call:
 | Stage | Typical Latency | % of Total | Scalable? |
 |-------|----------------|------------|-----------|
 | Query embedding | 100-300ms | 5-10% | Rate limit bound |
-| Hybrid search | 50-150ms | 3-5% | Index replicas |
+| Hybrid search + semantic ranking | 50-250ms | 3-8% | Index replicas |
 | Score filtering | < 1ms | ~0% | N/A |
 | Prompt construction | < 1ms | ~0% | N/A |
 | LLM completion | 1.5-4s | 80-90% | PTU / model selection |

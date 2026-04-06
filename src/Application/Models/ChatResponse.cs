@@ -30,5 +30,7 @@ public sealed class RetrievedChunkDebug
     public required string FileName { get; init; }
     public required string Section { get; init; }
     public required double Score { get; init; }
+    public double RerankerScore { get; init; }
+    public string? Caption { get; init; }
     public required string ContentPreview { get; init; }
 }

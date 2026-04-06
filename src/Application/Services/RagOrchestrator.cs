@@ -39,7 +39,7 @@ public sealed class RagOrchestrator
         // Step 1: Generate embedding for the query
         var queryEmbedding = await _embeddingService.GenerateEmbeddingAsync(question, cancellationToken);
 
-        // Step 2: Hybrid retrieval (keyword + vector)
+        // Step 2: Hybrid retrieval (keyword + vector) with semantic re-ranking
         var results = await _retrievalService.SearchAsync(question, queryEmbedding, TopK, cancellationToken);
 
         // Filter out low-relevance results
@@ -84,6 +84,8 @@ public sealed class RagOrchestrator
                 FileName = r.Chunk.FileName,
                 Section = r.Chunk.Section,
                 Score = r.Score,
+                RerankerScore = r.RerankerScore,
+                Caption = r.Caption,
                 ContentPreview = r.Chunk.Content.Length > 300
                     ? r.Chunk.Content[..300] + "..."
                     : r.Chunk.Content
