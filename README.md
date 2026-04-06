@@ -1,8 +1,15 @@
 # RAG Navigator
 
-[![CI](https://github.com/ArtemSemenov/rag-navigator/actions/workflows/ci.yml/badge.svg)](https://github.com/ArtemSemenov/rag-navigator/actions/workflows/ci.yml)
+[![CI](https://github.com/artemsemdev/RAG-Navigator/actions/workflows/ci.yml/badge.svg)](https://github.com/artemsemdev/RAG-Navigator/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/artemsemdev/RAG-Navigator/actions/workflows/codeql.yml/badge.svg)](https://github.com/artemsemdev/RAG-Navigator/actions/workflows/codeql.yml)
 
 **Engineering Knowledge Assistant** — A code-first Retrieval-Augmented Generation (RAG) application built with .NET, Azure OpenAI, and Azure AI Search.
+
+<!-- Screenshot or GIF of the running app goes here.
+     Capture the chat interface answering a question with citations visible.
+     Place the image in docs/images/ and uncomment the line below:
+-->
+<!-- ![RAG Navigator in action](docs/images/demo.gif) -->
 
 This project demonstrates two capabilities:
 1. **Azure GenAI / RAG implementation** — a complete, working RAG pipeline with direct Azure SDK usage
@@ -108,7 +115,10 @@ RAGNavigator/
 │   │   └── Configuration/    # Strongly-typed options with validation
 │   └── Web/                  # ASP.NET Core Razor Pages + Minimal API
 │       └── Pages/            # Chat, Architecture, Decisions, Operations
-├── tests/                    # xUnit tests (chunking + prompt assembly)
+├── tests/                    # xUnit tests (chunking, prompt assembly, integration)
+├── infra/                    # Terraform IaC (Azure OpenAI + AI Search + App Service)
+│   ├── modules/              # openai, search, app-service modules
+│   └── environments/         # Per-environment tfvars (dev, staging, prod)
 ├── sample-data/              # Engineering documents (ADRs, runbooks, postmortems)
 ├── docs/architecture/        # 26 architecture documents (also indexed as corpus)
 └── RAGNavigator.sln
@@ -171,8 +181,8 @@ All architecture documents are indexed as part of the RAG corpus — the assista
 ### 1. Clone and build
 
 ```bash
-git clone https://github.com/ArtemSemenov/rag-navigator.git
-cd rag-navigator
+git clone https://github.com/artemsemdev/RAG-Navigator.git
+cd RAG-Navigator
 dotnet build
 dotnet test
 ```
@@ -286,7 +296,7 @@ Plus 26 architecture documents in `docs/architecture/` covering solution design,
 | Azure AD authentication | Medium | User identity |
 | Document upload | Medium | Self-service corpus management |
 | Conversation memory | Medium | Multi-turn context |
-| Bicep/Terraform IaC | Medium | Reproducible infrastructure |
+| ~~Terraform IaC~~ | ~~Medium~~ | ~~Reproducible infrastructure~~ ✅ Done — see `infra/` |
 | Agentic retrieval | High | Multi-step query decomposition |
 
 ## Tech Stack
