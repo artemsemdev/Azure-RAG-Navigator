@@ -200,6 +200,9 @@ export AZURE_OPENAI_API_KEY="your-key"          # or use az login
 export AZURE_SEARCH_ENDPOINT="https://your-search.search.windows.net"
 export AZURE_SEARCH_INDEX_NAME="rag-navigator-index"
 export AZURE_SEARCH_API_KEY="your-key"           # or use az login
+
+export RAG_TOP_K="5"                             # optional retrieval tuning
+export RAG_MINIMUM_RELEVANCE_SCORE="0.01"        # optional retrieval tuning
 ```
 
 ### 3. Run

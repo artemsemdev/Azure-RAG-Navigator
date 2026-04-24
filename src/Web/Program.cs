@@ -246,6 +246,8 @@ static void MapEnvironmentVariables(ConfigurationManager config)
         ["AZURE_SEARCH_ENDPOINT"] = "AzureSearch:Endpoint",
         ["AZURE_SEARCH_INDEX_NAME"] = "AzureSearch:IndexName",
         ["AZURE_SEARCH_API_KEY"] = "AzureSearch:ApiKey",
+        ["RAG_TOP_K"] = "Rag:TopK",
+        ["RAG_MINIMUM_RELEVANCE_SCORE"] = "Rag:MinimumRelevanceScore",
         ["ADMIN_API_KEY"] = "Security:AdminApiKey"
     };
 
