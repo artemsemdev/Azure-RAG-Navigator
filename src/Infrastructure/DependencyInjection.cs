@@ -6,6 +6,7 @@ using Azure.Search.Documents.Indexes;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+using RAGNavigator.Application.Configuration;
 using RAGNavigator.Application.Interfaces;
 using RAGNavigator.Application.Services;
 using RAGNavigator.Infrastructure.AI;
@@ -24,12 +25,22 @@ public static class DependencyInjection
         services.AddOptions<AzureOpenAIOptions>()
             .Bind(configuration.GetSection(AzureOpenAIOptions.SectionName))
             .ValidateDataAnnotations()
+            .Validate(
+                o => o.EmbeddingDimensions == SearchIndexDocument.ContentVectorDimensions,
+                $"AzureOpenAI:EmbeddingDimensions must be {SearchIndexDocument.ContentVectorDimensions} " +
+                "to match the Azure AI Search ContentVector field.")
             .ValidateOnStart();
 
         services.AddOptions<AzureSearchOptions>()
             .Bind(configuration.GetSection(AzureSearchOptions.SectionName))
             .ValidateDataAnnotations()
             .ValidateOnStart();
+
+        services.AddOptions<RagOptions>()
+            .Bind(configuration.GetSection(RagOptions.SectionName))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+        services.AddSingleton(sp => sp.GetRequiredService<IOptions<RagOptions>>().Value);
 
         // Azure OpenAI client
         // Uses API key if provided, otherwise falls back to DefaultAzureCredential.

@@ -79,6 +79,8 @@ graph TB
 
 Each environment uses its own Azure AI Search index (via the `AZURE_SEARCH_INDEX_NAME` setting) to avoid cross-environment data contamination.
 
+Terraform assigns the App Service managed identity the Azure OpenAI and Azure AI Search roles required by the application. It can also attach platform diagnostic settings to an existing Log Analytics workspace via `log_analytics_workspace_id`.
+
 ## Network Boundaries
 
 ### Current (Demo)

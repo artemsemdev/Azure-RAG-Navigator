@@ -103,7 +103,7 @@
                 <div class="citations-header">Sources</div>`;
             data.citations.forEach((c, i) => {
                 html += `<div class="citation-item">
-                    <span class="citation-badge">${i + 1}</span>
+                    <span class="citation-badge">${escapeHtml(c.sourceId || String(i + 1))}</span>
                     <div class="citation-text">
                         <span class="citation-filename">${escapeHtml(c.fileName)}</span>
                         <span class="citation-section"> &mdash; ${escapeHtml(c.section)}</span>

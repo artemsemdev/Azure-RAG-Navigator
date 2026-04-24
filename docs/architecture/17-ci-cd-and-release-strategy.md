@@ -36,11 +36,22 @@ graph LR
 ### Steps
 
 1. **Restore:** `dotnet restore`
-2. **Build:** `dotnet build --configuration Release --no-restore`
-3. **Test:** `dotnet test --no-build --configuration Release`
-4. **Analyze:** Run `dotnet format --verify-no-changes` for style enforcement.
-5. **Containerize:** Build Docker image from `src/Web`.
-6. **Push:** Push image to Azure Container Registry (ACR).
+2. **Dependency security:** fail on vulnerable or deprecated NuGet packages.
+3. **Build:** `dotnet build --configuration Release --no-restore`
+4. **Test:** `dotnet test --no-build --configuration Release`
+5. **Analyze:** Run `dotnet format --verify-no-changes` for style enforcement.
+6. **Containerize:** Build Docker image from `src/Web`.
+7. **Push:** Push image to Azure Container Registry (ACR).
+
+### Security Gates
+
+| Workflow | Gate | Behavior |
+|----------|------|----------|
+| `ci.yml` | NuGet vulnerable/deprecated package audit | Fails the build on vulnerable or deprecated packages |
+| `ci.yml` | Terraform format/init/validate | Fails when infrastructure code is malformed or invalid |
+| `codeql.yml` | CodeQL C# security and quality analysis | Publishes code scanning findings on push, PR, and weekly schedule |
+| `security.yml` | Gitleaks secret scan | Fails on committed secrets in repository history |
+| `security.yml` | Trivy Terraform config scan | Fails on HIGH or CRITICAL IaC misconfigurations |
 
 ### Dockerfile Concept
 
@@ -76,9 +87,21 @@ graph LR
 
 | Environment | Trigger | Validation |
 |-------------|---------|-----------|
-| **Dev** | Automatic on merge to main | Smoke tests: health check, basic query |
-| **Staging** | Automatic after dev passes | Integration tests: reindex, query, verify citations |
+| **Dev** | Automatic on merge to main | Smoke tests: health check, basic query, golden question catalog validation |
+| **Staging** | Automatic after dev passes | Integration tests: reindex, query, verify citations and retrieval source recall |
 | **Production** | Manual approval gate | Verified by staging results |
+
+### RAG Evaluation Gate
+
+Default CI runs the deterministic evaluation tests with the rest of the unit suite. Staging can additionally run the live Azure-backed retrieval evaluation:
+
+```bash
+export RAG_NAVIGATOR_RUN_LIVE_RETRIEVAL_EVAL=1
+export RAG_EVAL_SEARCH_INDEX_NAME="rag-navigator-eval-staging"
+dotnet test RAGNavigator.sln --configuration Release --filter "Category=Integration"
+```
+
+The live eval uses a dedicated search index whose name must start with `rag-navigator-eval` so the reindex step cannot accidentally delete a production or shared index.
 
 ### Smoke Test (Dev)
 

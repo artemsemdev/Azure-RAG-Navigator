@@ -71,14 +71,14 @@ curl -X POST http://localhost:5000/api/index/reindex</code></pre>
                     <div class="waf-header reliability">Reliability</div>
                     <div class="waf-score">2/5</div>
                     <p><strong>Strength:</strong> Rebuildable index from source files; SDK built-in retries.</p>
-                    <p><strong>Gap:</strong> No health checks, no circuit breakers, all-or-nothing ingestion.</p>
-                    <p><strong>Next:</strong> Add <code>/health</code> endpoints and per-file error handling.</p>
+                    <p><strong>Gap:</strong> No health checks, no circuit breakers, embedding/upload failures still stop reindex.</p>
+                    <p><strong>Next:</strong> Add <code>/health</code> endpoints and retry/backoff policies.</p>
                 </div>
                 <div class="waf-card">
                     <div class="waf-header security">Security</div>
                     <div class="waf-score">3/5</div>
-                    <p><strong>Strength:</strong> Managed identity, OWASP security headers, rate limiting, input sanitization, prompt injection detection, CSRF protection, admin key auth, debug mode gating.</p>
-                    <p><strong>Gap:</strong> No user authentication (Azure AD), no Azure AI Content Safety integration.</p>
+                    <p><strong>Strength:</strong> Managed identity, OWASP security headers, rate limiting, input sanitization, prompt injection detection, CSRF protection, chat/admin key gates, debug mode gating.</p>
+                    <p><strong>Gap:</strong> No individual user identity or Azure AI Content Safety integration.</p>
                     <p><strong>Next:</strong> Azure AD auth, Key Vault migration, Content Safety integration.</p>
                 </div>
                 <div class="waf-card">
@@ -91,9 +91,9 @@ curl -X POST http://localhost:5000/api/index/reindex</code></pre>
                 <div class="waf-card">
                     <div class="waf-header operations">Operational Excellence</div>
                     <div class="waf-score">3/5</div>
-                    <p><strong>Strength:</strong> Structured logging, debug mode, configuration validation.</p>
-                    <p><strong>Gap:</strong> No Application Insights, no metrics, no CI/CD pipeline.</p>
-                    <p><strong>Next:</strong> Add Application Insights SDK.</p>
+                    <p><strong>Strength:</strong> Structured logging, runtime telemetry, debug mode, configuration validation, CI baseline.</p>
+                    <p><strong>Gap:</strong> No dashboards or alert rules.</p>
+                    <p><strong>Next:</strong> Add Azure Monitor dashboards and alerting.</p>
                 </div>
                 <div class="waf-card">
                     <div class="waf-header performance">Performance Efficiency</div>

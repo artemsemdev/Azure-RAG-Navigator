@@ -37,18 +37,18 @@ The application does not add additional retry logic on top of the SDK defaults. 
 | Azure OpenAI unavailable | HTTP 500 returned, UI shows error | Retry with backoff, show cached answer if available |
 | Azure AI Search unavailable | HTTP 500 returned, UI shows error | Return "search unavailable" with suggestion to retry |
 | LLM returns empty content | Graceful fallback message | Same, plus alert to operations team |
-| No relevant search results | LLM says "not enough information" | Same, plus suggest alternative queries |
+| No relevant search results | Deterministic "not enough information" response without LLM call | Same, plus suggest alternative queries |
 | File read error during ingestion | Exception stops ingestion | Skip file, log error, continue with remaining files |
 
 ### Failure Handling: Indexing
 
-The current ingestion pipeline is all-or-nothing:
-1. If any file fails to read, the entire ingestion stops.
-2. If embedding generation fails mid-batch, remaining chunks are not processed.
-3. If index upload fails, the index may be in a partially updated state.
+The current ingestion pipeline isolates file read/chunk failures:
+1. If a file fails to read or chunk, the failure is logged and the file is skipped.
+2. Other files continue through embedding and indexing.
+3. If embedding generation fails mid-batch, remaining chunks are not processed.
+4. If index upload fails, the index may be in a partially updated state.
 
 **Production improvements:**
-- Process files independently — skip failures, log warnings, continue.
 - Implement per-batch retry for embedding generation.
 - Use a transactional indexing approach (blue-green indexes) to avoid partial state.
 - Emit a summary report at the end: files processed, files skipped, errors encountered.

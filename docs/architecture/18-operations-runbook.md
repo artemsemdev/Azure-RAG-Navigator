@@ -10,14 +10,18 @@
 
 ### Via the API
 ```bash
-curl -X POST http://localhost:5000/api/index/reindex
+curl -X POST http://localhost:5000/api/index/reindex \
+  -H "X-Admin-Key: $ADMIN_API_KEY"
 ```
 
 Expected response:
 ```json
 {
   "message": "Indexing complete.",
-  "chunksIndexed": 82
+  "chunksIndexed": 82,
+  "filesFound": 34,
+  "filesProcessed": 34,
+  "filesFailed": 0
 }
 ```
 
@@ -28,6 +32,8 @@ dotnet run
 # In another terminal:
 curl -X POST http://localhost:5000/api/index/reindex
 ```
+
+In Development, the admin key may be omitted if `ADMIN_API_KEY` is not configured. In non-development environments, `ADMIN_API_KEY` must be configured or reindexing returns HTTP 503.
 
 ## How to Diagnose Failed Ingestion
 
@@ -118,10 +124,14 @@ curl -X POST http://localhost:5000/api/index/reindex
 | OpenAI Endpoint | `AZURE_OPENAI_ENDPOINT` | `https://my-openai.openai.azure.com/` |
 | Chat Deployment | `AZURE_OPENAI_CHAT_DEPLOYMENT` | `gpt-4o` |
 | Embedding Deployment | `AZURE_OPENAI_EMBEDDING_DEPLOYMENT` | `text-embedding-ada-002` |
+| Embedding Dimensions | `AZURE_OPENAI_EMBEDDING_DIMENSIONS` | `1536` |
 | OpenAI API Key | `AZURE_OPENAI_API_KEY` | (32-char key, or empty for managed identity) |
 | Search Endpoint | `AZURE_SEARCH_ENDPOINT` | `https://my-search.search.windows.net` |
 | Search Index Name | `AZURE_SEARCH_INDEX_NAME` | `rag-navigator-index` |
 | Search API Key | `AZURE_SEARCH_API_KEY` | (52-char key, or empty for managed identity) |
+| Reindex Admin Key | `ADMIN_API_KEY` | Required outside Development |
+| Retrieval Top K | `RAG_TOP_K` | `5` |
+| Minimum Relevance Score | `RAG_MINIMUM_RELEVANCE_SCORE` | `0.01` |
 
 ### Startup Validation
 

@@ -4,6 +4,18 @@
 
 RAG Navigator supports two authentication modes for accessing Azure services, designed to be flexible for local development while being production-ready with managed identity.
 
+Endpoint access is intentionally separate from Azure service access:
+
+| Endpoint | Current Auth | Production Direction |
+|----------|--------------|----------------------|
+| `POST /api/chat` | Optional `X-Chat-Key`, or JWT bearer tokens when `Security:AuthMode=Bearer` | Entra ID bearer tokens with user/group claims |
+| `POST /api/index/reindex` | `X-Admin-Key` in API-key mode, or JWT bearer token with configured admin role in bearer mode | Entra ID admin role or managed operations job |
+| Read-only pages / document list | Anonymous demo access | Entra ID or network-restricted internal app |
+
+Set `Security:RequireChatApiKey=true` / `REQUIRE_CHAT_API_KEY=true` to make `/api/chat` fail closed if the chat API key is not configured.
+
+Set `Security:AuthMode=Bearer` / `AUTH_MODE=Bearer` with `Security:Jwt:Authority` and `Security:Jwt:Audience` to enable Entra-compatible bearer authentication. The reindex endpoint additionally requires one of `Security:Jwt:AdminRoles` (default: `RAGNavigator.Admin`).
+
 ### Local Development: API Keys
 
 For local development, API keys are the simplest path to getting started:
@@ -73,7 +85,16 @@ This role grants both index management and data operations. For stricter separat
 - Use **Search Index Data Reader** for query-only workloads.
 - Use **Search Service Contributor** for index schema management only.
 
-### Assignment Commands
+### Terraform Assignments
+
+The Terraform deployment assigns these roles to the App Service system-assigned managed identity:
+
+| Role | Scope |
+|------|-------|
+| **Cognitive Services OpenAI User** | Azure OpenAI account |
+| **Search Index Data Contributor** | Azure AI Search service |
+
+### Manual Assignment Commands
 
 ```bash
 # Assign roles to a managed identity
@@ -108,13 +129,13 @@ The same pattern is used for `SearchIndexClient` and `SearchClient`. This means:
 - API key auth: set the key in config → used immediately.
 - Managed identity / az login: leave the key empty → `DefaultAzureCredential` is used.
 
-## End-User Authentication (Not Implemented)
+## End-User Authentication
 
-The current demo has no end-user authentication. For production:
+The current implementation provides API-key endpoint gates but does not yet model individual users. For production:
 
 | Approach | Implementation |
 |----------|---------------|
-| **Azure AD / Entra ID** | Add `Microsoft.Identity.Web` middleware. Require bearer tokens on API endpoints. |
+| **Azure AD / Entra ID** | Configure bearer auth mode with the tenant authority, API audience, and app roles. |
 | **Document-level access** | Add user group claims to the token. Filter search results by user's groups. |
 | **Audit logging** | Log the authenticated user ID with each query for compliance. |
 

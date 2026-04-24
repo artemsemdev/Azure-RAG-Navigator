@@ -61,8 +61,8 @@ sequenceDiagram
     end
     IS-->>DP: Upload complete
 
-    DP-->>API: chunkCount
-    API-->>UI: {message, chunksIndexed}
+    DP-->>API: IngestionSummary
+    API-->>UI: {message, chunksIndexed, filesFound, filesProcessed, filesFailed}
     UI->>UI: Refresh document list
     UI-->>User: "Indexing complete (N chunks)"
 ```
@@ -94,7 +94,7 @@ Azure AI Search supports up to 1,000 documents per upload request. The processor
 
 ## Timing Estimates
 
-For the current sample corpus (~7 engineering docs + ~26 architecture docs):
+For the current sample corpus (~7 engineering docs + ~27 architecture docs):
 
 | Phase | Estimated Duration |
 |-------|--------------------|

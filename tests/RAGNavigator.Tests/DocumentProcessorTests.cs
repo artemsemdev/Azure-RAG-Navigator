@@ -46,15 +46,56 @@ public class DocumentProcessorTests : IDisposable
             .Returns(new List<ReadOnlyMemory<float>> { FakeEmbedding });
 
         // Act
-        var count = await _processor.IngestDocumentsAsync([_tempDir]);
+        var summary = await _processor.IngestDocumentsAsync([_tempDir]);
 
         // Assert
-        Assert.Equal(1, count);
+        Assert.Equal(1, summary.ChunksIndexed);
+        Assert.Equal(1, summary.FilesFound);
+        Assert.Equal(1, summary.FilesProcessed);
+        Assert.Equal(0, summary.FilesFailed);
         await _indexService.Received(1).CreateOrUpdateIndexAsync(Arg.Any<CancellationToken>());
         await _indexService.Received(1).DeleteAllDocumentsAsync(Arg.Any<CancellationToken>());
         await _indexService.Received(1).UploadChunksAsync(
             Arg.Is<IReadOnlyList<DocumentChunk>>(c => c.Count == 1),
             Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task IngestDocumentsAsync_RecreatesIndexAfterClearingBeforeUpload()
+    {
+        // Arrange
+        await File.WriteAllTextAsync(Path.Combine(_tempDir, "doc.md"), "# Title\n\n## Section\n\nContent here.");
+
+        _chunker.Chunk(Arg.Any<string>(), "doc.md", Arg.Any<string>())
+            .Returns(new List<DocumentChunk> { MakeChunk("doc.md", "Section", "Content here.", 0) });
+        _embeddingService.GenerateEmbeddingsAsync(Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
+            .Returns(new List<ReadOnlyMemory<float>> { FakeEmbedding });
+
+        var callOrder = new List<string>();
+        _indexService.DeleteAllDocumentsAsync(Arg.Any<CancellationToken>())
+            .Returns(_ =>
+            {
+                callOrder.Add("delete");
+                return Task.CompletedTask;
+            });
+        _indexService.CreateOrUpdateIndexAsync(Arg.Any<CancellationToken>())
+            .Returns(_ =>
+            {
+                callOrder.Add("create");
+                return Task.CompletedTask;
+            });
+        _indexService.UploadChunksAsync(Arg.Any<IReadOnlyList<DocumentChunk>>(), Arg.Any<CancellationToken>())
+            .Returns(_ =>
+            {
+                callOrder.Add("upload");
+                return Task.CompletedTask;
+            });
+
+        // Act
+        await _processor.IngestDocumentsAsync([_tempDir]);
+
+        // Assert
+        Assert.Equal(["delete", "create", "upload"], callOrder);
     }
 
     [Fact]
@@ -79,10 +120,67 @@ public class DocumentProcessorTests : IDisposable
             });
 
         // Act
-        var count = await _processor.IngestDocumentsAsync([_tempDir]);
+        var summary = await _processor.IngestDocumentsAsync([_tempDir]);
 
         // Assert — should find all 3 files (.md and .txt)
-        Assert.Equal(3, count);
+        Assert.Equal(3, summary.ChunksIndexed);
+        Assert.Equal(3, summary.FilesProcessed);
+    }
+
+    [Fact]
+    public async Task IngestDocumentsAsync_FileChunkingFailure_SkipsFileAndContinues()
+    {
+        // Arrange
+        await File.WriteAllTextAsync(Path.Combine(_tempDir, "bad.md"), "# Bad\n\nBroken content.");
+        await File.WriteAllTextAsync(Path.Combine(_tempDir, "good.md"), "# Good\n\nUseful content.");
+
+        _chunker.Chunk(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>())
+            .Returns(ci =>
+            {
+                var fileName = (string)ci[1];
+                if (fileName == "bad.md")
+                    throw new InvalidDataException("Cannot chunk file.");
+
+                return new List<DocumentChunk> { MakeChunk(fileName, "Section", "Content", 0) };
+            });
+
+        _embeddingService.GenerateEmbeddingsAsync(Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
+            .Returns(new List<ReadOnlyMemory<float>> { FakeEmbedding });
+
+        // Act
+        var summary = await _processor.IngestDocumentsAsync([_tempDir]);
+
+        // Assert
+        Assert.Equal(2, summary.FilesFound);
+        Assert.Equal(1, summary.FilesProcessed);
+        Assert.Equal(1, summary.FilesFailed);
+        Assert.Equal(1, summary.ChunksIndexed);
+        await _indexService.Received(1).UploadChunksAsync(
+            Arg.Is<IReadOnlyList<DocumentChunk>>(chunks => chunks.Count == 1 && chunks[0].FileName == "good.md"),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task IngestDocumentsAsync_AllFilesFail_SkipsEmptyUpload()
+    {
+        // Arrange
+        await File.WriteAllTextAsync(Path.Combine(_tempDir, "bad.md"), "# Bad\n\nBroken content.");
+
+        _chunker.Chunk(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>())
+            .Returns(_ => throw new InvalidDataException("Cannot chunk file."));
+
+        // Act
+        var summary = await _processor.IngestDocumentsAsync([_tempDir]);
+
+        // Assert
+        Assert.Equal(1, summary.FilesFound);
+        Assert.Equal(0, summary.FilesProcessed);
+        Assert.Equal(1, summary.FilesFailed);
+        Assert.Equal(0, summary.ChunksIndexed);
+        await _embeddingService.DidNotReceive().GenerateEmbeddingsAsync(
+            Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>());
+        await _indexService.DidNotReceive().UploadChunksAsync(
+            Arg.Any<IReadOnlyList<DocumentChunk>>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -91,10 +189,11 @@ public class DocumentProcessorTests : IDisposable
         // Arrange — empty temp directory, no files
 
         // Act
-        var count = await _processor.IngestDocumentsAsync([_tempDir]);
+        var summary = await _processor.IngestDocumentsAsync([_tempDir]);
 
         // Assert
-        Assert.Equal(0, count);
+        Assert.Equal(0, summary.ChunksIndexed);
+        Assert.Equal(0, summary.FilesFound);
         await _indexService.DidNotReceive().CreateOrUpdateIndexAsync(Arg.Any<CancellationToken>());
     }
 
@@ -105,10 +204,11 @@ public class DocumentProcessorTests : IDisposable
         var missing = Path.Combine(_tempDir, "does-not-exist");
 
         // Act
-        var count = await _processor.IngestDocumentsAsync([missing]);
+        var summary = await _processor.IngestDocumentsAsync([missing]);
 
         // Assert
-        Assert.Equal(0, count);
+        Assert.Equal(0, summary.ChunksIndexed);
+        Assert.Equal(1, summary.FoldersRequested);
     }
 
     [Fact]
@@ -132,10 +232,10 @@ public class DocumentProcessorTests : IDisposable
             });
 
         // Act
-        var count = await _processor.IngestDocumentsAsync([_tempDir]);
+        var summary = await _processor.IngestDocumentsAsync([_tempDir]);
 
         // Assert — 20 chunks total, should be 2 batches (16 + 4)
-        Assert.Equal(20, count);
+        Assert.Equal(20, summary.ChunksIndexed);
         await _embeddingService.Received(2).GenerateEmbeddingsAsync(
             Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>());
     }
@@ -216,10 +316,10 @@ public class DocumentProcessorTests : IDisposable
             .Returns(new List<ReadOnlyMemory<float>> { FakeEmbedding });
 
         // Act — should not throw
-        var count = await _processor.IngestDocumentsAsync([_tempDir]);
+        var summary = await _processor.IngestDocumentsAsync([_tempDir]);
 
         // Assert
-        Assert.Equal(1, count);
+        Assert.Equal(1, summary.ChunksIndexed);
         _chunker.Received(1).Chunk(Arg.Is<string>(s => s.Contains("\ud83d\ude80")), "special.md", Arg.Any<string>());
     }
 
@@ -249,10 +349,11 @@ public class DocumentProcessorTests : IDisposable
                 });
 
             // Act
-            var count = await _processor.IngestDocumentsAsync([_tempDir, dir2]);
+            var summary = await _processor.IngestDocumentsAsync([_tempDir, dir2]);
 
             // Assert
-            Assert.Equal(2, count);
+            Assert.Equal(2, summary.ChunksIndexed);
+            Assert.Equal(2, summary.FoldersRequested);
         }
         finally
         {

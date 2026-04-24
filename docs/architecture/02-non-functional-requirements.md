@@ -33,16 +33,16 @@ This document defines the non-functional requirements for RAG Navigator, disting
 
 | Aspect | Demo (Current) | Production Target |
 |--------|---------------|-------------------|
-| Authentication | None (open access) | Azure AD / Entra ID |
+| Authentication | Optional API keys or JWT bearer mode | Azure AD / Entra ID with app roles |
 | Transport | HTTP (local dev) | HTTPS with TLS 1.2+ |
 | Secret management | Environment variables | Azure Key Vault |
 | Input validation | Basic null/empty checks | Input sanitization + length limits |
 | Prompt injection | LLM instruction only | Input filtering + output validation |
 | Data classification | Internal engineering docs | Classify and enforce per-document access |
 
-**Current implementation:** No authentication. API keys in environment variables. The LLM system prompt provides instruction-level grounding only.
+**Current implementation:** Chat authentication is optional and fail-closed when `Security:RequireChatApiKey=true`. Reindexing uses an admin key outside Development. Azure service credentials are API keys or managed identity.
 
-**Production path:** Add Azure AD authentication. Store secrets in Key Vault. Implement prompt injection detection. Apply RBAC-based document filtering in search queries.
+**Production path:** Configure Entra ID bearer auth with app roles. Store secrets in Key Vault. Apply RBAC-based document filtering in search queries.
 
 ## Maintainability
 
@@ -51,25 +51,25 @@ This document defines the non-functional requirements for RAG Navigator, disting
 | Architecture | Three-layer modular monolith (Application, Infrastructure, Web) |
 | Dependency injection | All services registered through interfaces |
 | Configuration | Strongly-typed options with startup validation |
-| Testing | Unit tests for core logic (chunking, prompt assembly) |
+| Testing | Unit tests for core logic plus retrieval evaluation harness for golden questions |
 | Code conventions | Consistent naming, async/await, cancellation tokens |
 | Documentation | Architecture docs, inline comments for non-obvious logic |
 
-**Design principle:** Every service boundary is defined by an interface in the Application layer. Infrastructure implementations can be replaced without touching business logic.
+**Design principle:** Every service boundary is defined by an interface in the Application layer. Infrastructure implementations can be replaced without touching business logic. Retrieval quality changes should be checked against the golden question evaluation harness before tuning chunking, top-k, or relevance thresholds.
 
 ## Observability
 
 | Aspect | Demo (Current) | Production Target |
 |--------|---------------|-------------------|
 | Logging | `ILogger` with structured messages | Application Insights with W3C trace context |
-| Metrics | None | Request duration, search latency, embedding latency |
-| Tracing | None | Distributed traces across embedding → search → LLM |
+| Metrics | .NET `Meter` instruments for query and ingestion paths | Exported dashboards with SLOs and alerting |
+| Tracing | .NET `ActivitySource` spans for query and ingestion paths | Distributed traces across embedding → search → LLM |
 | Alerting | None | Error rate, latency P95, index health |
 | Debug mode | UI panel showing chunks + scores + prompt | Retain for dev; gate behind auth in production |
 
-**Current implementation:** Structured logging through `Microsoft.Extensions.Logging`. Debug mode exposes retrieval details in the UI. No metrics or distributed tracing.
+**Current implementation:** Structured logging through `Microsoft.Extensions.Logging`. Debug mode exposes retrieval details in the UI. The app emits runtime metrics and spans through `RAGNavigator` `Meter` and `ActivitySource`; when `APPLICATIONINSIGHTS_CONNECTION_STRING` is configured, telemetry is exported through Azure Monitor OpenTelemetry.
 
-**Production path:** Add Application Insights SDK. Emit custom metrics for each pipeline stage. Create Grafana dashboards for query latency breakdown.
+**Production path:** Create Grafana or Azure Monitor dashboards for query latency breakdown and retrieval quality signals.
 
 ## Scalability
 

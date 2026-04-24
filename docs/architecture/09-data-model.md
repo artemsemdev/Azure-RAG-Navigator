@@ -56,6 +56,7 @@ A source reference parsed from the LLM's answer.
 
 ```
 Citation
+├── SourceId: string          # Local source id from the prompt, e.g. S1
 ├── FileName: string          # Source file name
 ├── DocumentTitle: string     # Document title
 ├── Section: string           # Section within the document
@@ -77,6 +78,19 @@ RetrievedChunkDebug
 ├── Section: string
 ├── Score: double
 └── ContentPreview: string    # First 300 chars of chunk content
+```
+
+### IngestionSummary
+
+Operational summary returned after a reindex run.
+
+```
+IngestionSummary
+├── FoldersRequested: int
+├── FilesFound: int
+├── FilesProcessed: int
+├── ChunksIndexed: int
+└── FilesFailed: int
 ```
 
 ### SourceDocument
@@ -118,7 +132,7 @@ SearchIndexDocument
 ├── Section: string           # Searchable
 ├── ChunkIndex: int           # Filterable, Sortable
 ├── Content: string           # Searchable (en.lucene analyzer)
-└── ContentVector: float[]    # Vector field (1536 dimensions, HNSW, Cosine)
+└── ContentVector: float[]    # Vector field (1536 dimensions, HNSW, Cosine; validated at startup/upload)
 ```
 
 ## Model Ownership
@@ -127,7 +141,7 @@ SearchIndexDocument
 |-------|-------|---------|
 | `DocumentChunk` | Application | Core domain model, used everywhere |
 | `RetrievalResult` | Application | Query pipeline output |
-| `ChatResponse`, `Citation`, `DebugInfo` | Application | API response models |
+| `ChatResponse`, `Citation`, `DebugInfo`, `IngestionSummary` | Application | API response and operational summary models |
 | `SourceDocument` | Application | Document list view model |
 | `SearchIndexDocument` | Infrastructure | Azure AI Search persistence mapping |
 

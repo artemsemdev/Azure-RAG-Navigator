@@ -39,6 +39,9 @@ sequenceDiagram
     Note over RO: Step 3: Filter low-relevance results
     RO->>RO: Filter by minimum score threshold
 
+    alt No relevant context
+        RO-->>API: Deterministic "not enough information" response
+    else Relevant context found
     Note over RO: Step 4: Build grounded prompt
     RO->>PB: BuildUserPrompt(question, relevantResults)
     PB-->>RO: Structured prompt with context + question
@@ -46,12 +49,13 @@ sequenceDiagram
     Note over RO: Step 5: Generate answer
     RO->>CS: GenerateAnswerAsync(systemPrompt, userPrompt)
     CS->>AOAI: POST /chat/completions (temp=0.1)
-    AOAI-->>CS: Answer text with [Source: ...] citations
+    AOAI-->>CS: Answer text with [S1]-style citations
     CS-->>RO: answer string
 
     Note over RO: Step 6: Extract citations
     RO->>PB: ExtractCitations(answer, relevantResults)
     PB-->>RO: Citation[] (fileName, section, snippet)
+    end
 
     RO-->>API: ChatResponse {answer, citations, debug?}
     API-->>UI: JSON response
@@ -82,10 +86,10 @@ sequenceDiagram
 | Search call fails | Exception propagates → HTTP 500 → UI shows error message |
 | LLM returns empty content | Graceful fallback message about content filtering |
 | LLM does not include citations | PromptBuilder falls back to all retrieved chunks as citations |
-| No relevant results found | LLM is instructed to say "not enough information" |
+| No relevant results found | Orchestrator returns deterministic "not enough information" without calling the LLM |
 
 ## Design Notes
 
 - **Temperature 0.1** is deliberately low to maximize factual grounding. Higher temperatures would produce more creative but less reliable answers.
-- **Top-K = 5** balances context richness against prompt token budget. More chunks provide better coverage but increase cost and latency.
-- **Minimum relevance threshold** filters out noise from the search results before they reach the LLM, reducing the risk of distraction by irrelevant content.
+- **Top-K = 5 by default** balances context richness against prompt token budget. It is configurable via `Rag:TopK` / `RAG_TOP_K`.
+- **Minimum relevance threshold** filters out noise from the search results before they reach the LLM, reducing the risk of distraction by irrelevant content. It is configurable via `Rag:MinimumRelevanceScore` / `RAG_MINIMUM_RELEVANCE_SCORE`.

@@ -59,9 +59,10 @@ All user input passes through `InputSanitizer.Sanitize()` before reaching the RA
 Multi-layered defense against prompt injection:
 
 1. **Structural delimiters** — user questions are wrapped in `<user_question>` XML tags in the prompt, creating a clear boundary between trusted instructions and untrusted input.
-2. **System prompt hardening** — explicit security instructions tell the model to treat tag contents as plain text, never follow instructions from user input, and never reveal system instructions.
-3. **Low temperature (0.1)** — reduces the model's tendency to follow creative or adversarial instructions.
-4. **Context separation** — retrieved document chunks are placed before the user question, maintaining a clear information hierarchy.
+2. **Delimiter escaping** — XML-sensitive characters in the user question (`<`, `>`, `&`) are escaped before prompt insertion so an attacker cannot close the `<user_question>` block.
+3. **System prompt hardening** — explicit security instructions tell the model to treat tag contents as plain text, never follow instructions from user input, and never reveal system instructions.
+4. **Low temperature (0.1)** — reduces the model's tendency to follow creative or adversarial instructions.
+5. **Context separation** — retrieved document chunks are placed before the user question, maintaining a clear information hierarchy.
 
 ### Rate Limiting (per-IP)
 
@@ -91,7 +92,15 @@ API POST endpoints validate `Content-Type: application/json`. HTML forms cannot 
 
 ### Admin Key Protection
 
-The `POST /api/index/reindex` endpoint requires an `X-Admin-Key` header matching the `ADMIN_API_KEY` environment variable. This prevents unauthorized reindexing (which could be used for DoS).
+The `POST /api/index/reindex` endpoint requires an `X-Admin-Key` header matching the `ADMIN_API_KEY` environment variable outside Development. The comparison uses a SHA-256 hash plus fixed-time comparison to avoid leaking timing information. If `ADMIN_API_KEY` is missing in a non-development environment, reindexing is disabled with HTTP 503. This prevents unauthorized reindexing (which could be used for DoS).
+
+### Chat API Key Protection
+
+The `POST /api/chat` endpoint is anonymous by default for local demo use. When `CHAT_API_KEY` / `Security:ChatApiKey` is configured, chat requests must include `X-Chat-Key`. Validation uses the same SHA-256 plus fixed-time comparison pattern as the admin key. If `REQUIRE_CHAT_API_KEY=true` is set without a configured key, the chat endpoint fails closed with HTTP 503.
+
+### Bearer Authentication Mode
+
+For production-style deployments, `Security:AuthMode=Bearer` enables JWT bearer authentication using `Security:Jwt:Authority` and `Security:Jwt:Audience`. In this mode, chat requests require an authenticated token and reindex requests require an authenticated token with one of the configured admin roles. If bearer mode is selected without authority or audience, startup fails closed.
 
 ### Debug Mode Gating
 
@@ -121,9 +130,11 @@ The `POST /api/index/reindex` endpoint requires an `X-Admin-Key` header matching
 - `InputSanitizer` detects 13 categories of injection patterns and logs suspicious inputs.
 - Invisible Unicode characters (zero-width spaces, etc.) are stripped before detection.
 - User questions are wrapped in `<user_question>` XML delimiters in the prompt.
+- XML-sensitive characters in user questions are escaped before prompt insertion.
 - System prompt includes explicit security instructions against instruction override.
 - Low temperature (0.1) reduces the model's tendency to follow creative instructions.
 - Input length limited to 2000 characters.
+- Optional `X-Chat-Key` can restrict chat access before the RAG pipeline runs.
 
 **Residual risk:** Sophisticated injection attacks using novel patterns can still bypass regex-based detection. The multi-layered approach (sanitization + structural delimiters + system prompt hardening) makes exploitation significantly harder but not impossible.
 
@@ -203,10 +214,11 @@ The `POST /api/index/reindex` endpoint requires an `X-Admin-Key` header matching
 **Current mitigations:**
 - Debug-level logging includes prompt content, but the default production log level is `Information`.
 - Structured logging avoids accidental PII leakage in standard log messages.
+- User questions are not logged raw at `Information`; query processing logs include only question length and a short SHA-256 fingerprint for correlation.
 - Prompt injection attempts are logged with IP address for security monitoring.
 
 **Production improvements:**
-- Scrub or hash sensitive fields before logging.
+- Continue expanding field-level scrubbing and hashing for future telemetry.
 - Configure log retention policies.
 - Use Azure Monitor's data masking features.
 
@@ -242,5 +254,5 @@ The `POST /api/index/reindex` endpoint requires an `X-Admin-Key` header matching
 | App → Azure OpenAI | API key (full access) | Managed identity + "Cognitive Services OpenAI User" role |
 | App → Azure AI Search | API key (admin access) | Managed identity + "Search Index Data Contributor" role |
 | App → File System | OS user permissions | Read-only mount in container |
-| End User → App | No authentication (rate-limited) | Azure AD authentication + RBAC |
-| Admin → Reindex | API key (`X-Admin-Key` header) | Azure AD with admin role |
+| End User → App | Optional API key or bearer token + rate limiting | Azure AD authentication + RBAC |
+| Admin → Reindex | API key or bearer token with admin role | Azure AD with admin role |

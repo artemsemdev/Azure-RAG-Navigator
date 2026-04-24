@@ -103,6 +103,16 @@ graph TB
 | **AzureSearchIndexService** | `Azure.Search.Documents` → `SearchIndexClient` + `SearchClient` | Creates index schema, uploads/deletes documents |
 | **AzureSearchRetrievalService** | `Azure.Search.Documents` → `SearchClient` | Executes hybrid (keyword + vector) queries |
 
+### Web Layer
+
+| Component | Responsibility |
+|-----------|---------------|
+| **Program** | Composition root: wires configuration, DI, middleware, Razor Pages, and endpoint modules |
+| **ChatEndpoints** | Handles `/api/chat` HTTP validation, endpoint auth gate, prompt-injection logging, debug gating, and response shaping |
+| **IndexEndpoints** | Handles index document listing and reindex endpoint authorization/orchestration |
+| **DocumentFolderResolver** | Resolves and validates source folders for reindexing, including `SampleDataPath` traversal protection |
+| **Configuration extensions** | Isolate environment variable mapping, endpoint auth, telemetry export, and rate limiting setup |
+
 ## Dependency Flow
 
 ```

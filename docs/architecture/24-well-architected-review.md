@@ -22,9 +22,9 @@ This review evaluates RAG Navigator against the five pillars of the Azure Well-A
 **Weaknesses:**
 - No health endpoints for orchestrators to probe.
 - No circuit breaker — a downstream outage causes repeated failures.
-- Ingestion is all-or-nothing; one file failure stops everything.
+- File read/chunk failures are isolated, but embedding and upload failures still stop the reindex.
 
-**Next improvement:** Add `/health` and `/health/ready` endpoints. Implement per-file error handling in ingestion.
+**Next improvement:** Add `/health` and `/health/ready` endpoints. Add retry/backoff around embedding and upload.
 
 ---
 
@@ -92,21 +92,22 @@ This review evaluates RAG Navigator against the five pillars of the Azure Well-A
 | Alerting | None | Missing |
 | Runbook | Detailed operations runbook | Strong |
 | Configuration | Validated on startup with clear errors | Strong |
-| CI/CD | Design documented, not implemented | Planned |
+| CI/CD | GitHub Actions build/test/format plus package security audit | Baseline |
 | Debug tooling | Debug mode UI panel | Strong |
 
 **Strengths:**
 - Structured logging with meaningful messages at every pipeline stage.
+- Runtime metrics and spans are emitted through .NET `Meter` and `ActivitySource`.
 - Debug mode provides retrieval transparency without external tools.
 - Configuration validation fails fast with clear error messages.
+- CI enforces restore, vulnerable package checks, formatting, build, and tests.
 - Comprehensive operations runbook covers common scenarios.
 
 **Weaknesses:**
-- No Application Insights or distributed tracing.
-- No metrics collection (query latency, token usage).
-- No CI/CD pipeline (documented but not implemented).
+- No alert definitions or dashboards are provisioned yet.
+- CI package checks now fail on vulnerable or deprecated NuGet packages, but there is no automated dependency update workflow yet.
 
-**Next improvement:** Add Application Insights SDK for automated request/dependency telemetry.
+**Next improvement:** Add alerting dashboards and SLO-based monitors.
 
 ---
 
@@ -141,9 +142,9 @@ This review evaluates RAG Navigator against the five pillars of the Azure Well-A
 | Pillar | Score (1-5) | Key Strength | Key Gap |
 |--------|-------------|-------------|---------|
 | Reliability | 2 | Rebuildable index from source files | No health checks or circuit breakers |
-| Security | 2 | Managed identity support built in | No user auth, basic input validation |
+| Security | 3 | Managed identity and bearer auth support built in | No document-level authorization |
 | Cost Optimization | 3 | Right-sized resources, documented cost model | No cost monitoring or caching |
-| Operational Excellence | 3 | Strong logging, debug mode, runbook | No telemetry or CI/CD pipeline |
+| Operational Excellence | 3 | Strong logging, debug mode, runbook, CI baseline, OpenTelemetry export | No dashboards or alerts |
 | Performance Efficiency | 3 | Efficient batching and hybrid search | No streaming or caching |
 
 **Overall assessment:** The application is well-suited for its demo scope. The architecture documentation clearly identifies the gaps and the path to production readiness. The foundation (interfaces, clean layers, config validation) makes each improvement straightforward to add.

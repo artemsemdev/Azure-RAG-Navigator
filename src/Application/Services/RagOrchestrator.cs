@@ -1,6 +1,11 @@
+using System.Security.Cryptography;
+using System.Text;
+using System.Diagnostics;
 using Microsoft.Extensions.Logging;
+using RAGNavigator.Application.Configuration;
 using RAGNavigator.Application.Interfaces;
 using RAGNavigator.Application.Models;
+using RAGNavigator.Application.Observability;
 
 namespace RAGNavigator.Application.Services;
 
@@ -12,20 +17,20 @@ public sealed class RagOrchestrator
     private readonly IEmbeddingService _embeddingService;
     private readonly IRetrievalService _retrievalService;
     private readonly IChatCompletionService _chatService;
+    private readonly RagOptions _options;
     private readonly ILogger<RagOrchestrator> _logger;
-
-    private const int TopK = 5;
-    private const double MinimumRelevanceScore = 0.01;
 
     public RagOrchestrator(
         IEmbeddingService embeddingService,
         IRetrievalService retrievalService,
         IChatCompletionService chatService,
+        RagOptions options,
         ILogger<RagOrchestrator> logger)
     {
         _embeddingService = embeddingService;
         _retrievalService = retrievalService;
         _chatService = chatService;
+        _options = options;
         _logger = logger;
     }
 
@@ -34,43 +39,120 @@ public sealed class RagOrchestrator
         bool includeDebugInfo = false,
         CancellationToken cancellationToken = default)
     {
-        _logger.LogInformation("Processing question: {Question}", question);
+        var totalStopwatch = Stopwatch.StartNew();
+        using var activity = RagTelemetry.StartActivity("rag.query");
+        var questionFingerprint = CreateQuestionFingerprint(question);
 
-        // Step 1: Generate embedding for the query
-        var queryEmbedding = await _embeddingService.GenerateEmbeddingAsync(question, cancellationToken);
+        activity?.SetTag("rag.question.length", question.Length);
+        activity?.SetTag("rag.question.fingerprint", questionFingerprint);
+        activity?.SetTag("rag.debug", includeDebugInfo);
 
-        // Step 2: Hybrid retrieval (keyword + vector) with semantic re-ranking
-        var results = await _retrievalService.SearchAsync(question, queryEmbedding, TopK, cancellationToken);
+        _logger.LogInformation(
+            "Processing question ({QuestionLength} chars, fingerprint: {QuestionFingerprint})",
+            question.Length,
+            questionFingerprint);
 
-        // Filter out low-relevance results
-        var relevantResults = results
-            .Where(r => r.Score >= MinimumRelevanceScore)
-            .ToList();
-
-        _logger.LogInformation("Retrieved {Count} relevant chunks (of {Total} total)",
-            relevantResults.Count, results.Count);
-
-        // Step 3: Build grounded prompt
-        var userPrompt = PromptBuilder.BuildUserPrompt(question, relevantResults);
-
-        // Step 4: Generate answer
-        var answer = await _chatService.GenerateAnswerAsync(
-            PromptBuilder.SystemPrompt,
-            userPrompt,
-            cancellationToken);
-
-        // Step 5: Extract citations
-        var citations = PromptBuilder.ExtractCitations(answer, relevantResults);
-
-        // Build response
-        var response = new ChatResponse
+        try
         {
-            Answer = answer,
-            Citations = citations,
-            Debug = includeDebugInfo ? BuildDebugInfo(relevantResults, userPrompt) : null
-        };
+            // Step 1: Generate embedding for the query
+            var embeddingStopwatch = Stopwatch.StartNew();
+            var queryEmbedding = await _embeddingService.GenerateEmbeddingAsync(question, cancellationToken);
+            embeddingStopwatch.Stop();
 
-        return response;
+            // Step 2: Hybrid retrieval (keyword + vector) with semantic re-ranking
+            var searchStopwatch = Stopwatch.StartNew();
+            var results = await _retrievalService.SearchAsync(question, queryEmbedding, _options.TopK, cancellationToken);
+            searchStopwatch.Stop();
+
+            // Filter out low-relevance results
+            var relevantResults = results
+                .Where(r => r.Score >= _options.MinimumRelevanceScore)
+                .ToList();
+
+            activity?.SetTag("rag.retrieved_chunks", results.Count);
+            activity?.SetTag("rag.relevant_chunks", relevantResults.Count);
+
+            _logger.LogInformation("Retrieved {Count} relevant chunks (of {Total} total)",
+                relevantResults.Count, results.Count);
+
+            if (relevantResults.Count == 0)
+            {
+                _logger.LogInformation("No relevant context found; returning deterministic insufficient-context response");
+
+                var emptyPrompt = includeDebugInfo
+                    ? PromptBuilder.BuildUserPrompt(question, relevantResults)
+                    : string.Empty;
+
+                totalStopwatch.Stop();
+                RagTelemetry.RecordQuery(
+                    totalStopwatch.Elapsed.TotalMilliseconds,
+                    embeddingStopwatch.Elapsed.TotalMilliseconds,
+                    searchStopwatch.Elapsed.TotalMilliseconds,
+                    llmDurationMs: 0,
+                    retrievedChunks: results.Count,
+                    relevantChunks: relevantResults.Count,
+                    citationsCount: 0,
+                    noContext: true,
+                    includeDebugInfo);
+
+                activity?.SetTag("rag.no_context", true);
+                activity?.SetStatus(ActivityStatusCode.Ok);
+
+                return new ChatResponse
+                {
+                    Answer = PromptBuilder.InsufficientContextAnswer,
+                    Citations = [],
+                    Debug = includeDebugInfo ? BuildDebugInfo(relevantResults, emptyPrompt) : null
+                };
+            }
+
+            // Step 3: Build grounded prompt
+            var userPrompt = PromptBuilder.BuildUserPrompt(question, relevantResults);
+
+            // Step 4: Generate answer
+            var llmStopwatch = Stopwatch.StartNew();
+            var answer = await _chatService.GenerateAnswerAsync(
+                PromptBuilder.SystemPrompt,
+                userPrompt,
+                cancellationToken);
+            llmStopwatch.Stop();
+
+            // Step 5: Extract citations
+            var citations = PromptBuilder.ExtractCitations(answer, relevantResults);
+
+            totalStopwatch.Stop();
+            RagTelemetry.RecordQuery(
+                totalStopwatch.Elapsed.TotalMilliseconds,
+                embeddingStopwatch.Elapsed.TotalMilliseconds,
+                searchStopwatch.Elapsed.TotalMilliseconds,
+                llmStopwatch.Elapsed.TotalMilliseconds,
+                retrievedChunks: results.Count,
+                relevantChunks: relevantResults.Count,
+                citationsCount: citations.Count,
+                noContext: false,
+                includeDebugInfo);
+
+            activity?.SetTag("rag.citations", citations.Count);
+            activity?.SetTag("rag.no_context", false);
+            activity?.SetStatus(ActivityStatusCode.Ok);
+
+            // Build response
+            var response = new ChatResponse
+            {
+                Answer = answer,
+                Citations = citations,
+                Debug = includeDebugInfo ? BuildDebugInfo(relevantResults, userPrompt) : null
+            };
+
+            return response;
+        }
+        catch (Exception ex)
+        {
+            totalStopwatch.Stop();
+            RagTelemetry.RecordQueryError(totalStopwatch.Elapsed.TotalMilliseconds, ex.GetType().Name);
+            activity?.SetStatus(ActivityStatusCode.Error, ex.GetType().Name);
+            throw;
+        }
     }
 
     private static DebugInfo BuildDebugInfo(IReadOnlyList<RetrievalResult> results, string fullPrompt)
@@ -91,5 +173,11 @@ public sealed class RagOrchestrator
                     : r.Chunk.Content
             }).ToList()
         };
+    }
+
+    private static string CreateQuestionFingerprint(string question)
+    {
+        var hash = SHA256.HashData(Encoding.UTF8.GetBytes(question));
+        return Convert.ToHexString(hash)[..12].ToLowerInvariant();
     }
 }

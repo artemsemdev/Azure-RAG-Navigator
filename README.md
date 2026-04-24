@@ -115,14 +115,17 @@ RAGNavigator/
 │   │   ├── Search/           # Azure AI Search (index + retrieval)
 │   │   └── Configuration/    # Strongly-typed options with validation
 │   └── Web/                  # ASP.NET Core Razor Pages + Minimal API
+│       ├── Configuration/     # Auth, telemetry, env mapping, rate limiting setup
+│       ├── Endpoints/         # Chat and index Minimal API endpoint modules
 │       ├── Middleware/        # SecurityHeadersMiddleware
+│       ├── Services/          # Web-only helpers such as document folder resolution
 │       └── Pages/            # Chat, Architecture, Decisions, Operations
 ├── tests/                    # xUnit tests (chunking, prompt assembly, integration)
 ├── infra/                    # Terraform IaC (Azure OpenAI + AI Search + App Service)
 │   ├── modules/              # openai, search, app-service modules
 │   └── environments/         # Per-environment tfvars (dev, staging, prod)
 ├── sample-data/              # Engineering documents (ADRs, runbooks, postmortems)
-├── docs/architecture/        # 26 architecture documents (also indexed as corpus)
+├── docs/architecture/        # 27 architecture documents (also indexed as corpus)
 └── RAGNavigator.sln
 ```
 
@@ -155,6 +158,7 @@ The `docs/architecture/` folder contains a complete solution architecture packag
 | [20-23 ADRs](docs/architecture/20-adr-001-modular-monolith.md) | Four detailed architecture decision records |
 | [24 Well-Architected Review](docs/architecture/24-well-architected-review.md) | Azure WAF assessment across 5 pillars |
 | [25 Demo Walkthrough](docs/architecture/25-demo-walkthrough.md) | 5-minute interview demo script |
+| [26 RAG Evaluation](docs/architecture/26-rag-evaluation.md) | Golden questions and retrieval quality evaluation strategy |
 
 All architecture documents are indexed as part of the RAG corpus — the assistant can answer questions about its own design.
 
@@ -195,11 +199,15 @@ dotnet test
 export AZURE_OPENAI_ENDPOINT="https://your-openai.openai.azure.com/"
 export AZURE_OPENAI_CHAT_DEPLOYMENT="gpt-4o"
 export AZURE_OPENAI_EMBEDDING_DEPLOYMENT="text-embedding-ada-002"
+export AZURE_OPENAI_EMBEDDING_DIMENSIONS="1536"
 export AZURE_OPENAI_API_KEY="your-key"          # or use az login
 
 export AZURE_SEARCH_ENDPOINT="https://your-search.search.windows.net"
 export AZURE_SEARCH_INDEX_NAME="rag-navigator-index"
 export AZURE_SEARCH_API_KEY="your-key"           # or use az login
+
+export RAG_TOP_K="5"                             # optional retrieval tuning
+export RAG_MINIMUM_RELEVANCE_SCORE="0.01"        # optional retrieval tuning
 ```
 
 ### 3. Run
@@ -221,6 +229,8 @@ Click **Reindex** in the sidebar to index all documents, then ask questions.
 | **DefaultAzureCredential** | Azure / `az login` | Leave API key vars empty |
 | **Managed Identity** | Production | Assign RBAC roles, no keys needed |
 
+For endpoint access, `/api/chat` is anonymous by default for local demo use. Set `CHAT_API_KEY` to require `X-Chat-Key` on chat requests; set `REQUIRE_CHAT_API_KEY=true` to fail closed if the key is missing. Reindex remains protected by `X-Admin-Key` when `ADMIN_API_KEY` is configured. Set `AUTH_MODE=Bearer`, `JWT_AUTHORITY`, and `JWT_AUDIENCE` to require Entra-compatible bearer tokens on chat and reindex endpoints; reindex also requires one of `Security:Jwt:AdminRoles`.
+
 **Required RBAC roles (production):**
 - **Cognitive Services OpenAI User** on the Azure OpenAI resource
 - **Search Index Data Contributor** on the Azure AI Search resource
@@ -229,11 +239,13 @@ Click **Reindex** in the sidebar to index all documents, then ask questions.
 
 | Control | Implementation |
 |---------|---------------|
-| **Prompt injection** | `InputSanitizer` (13 pattern categories) + `<user_question>` XML delimiters + system prompt hardening + low temperature |
+| **Prompt injection** | `InputSanitizer` (13 pattern categories) + escaped `<user_question>` delimiters + system prompt hardening + low temperature |
 | **Rate limiting** | Per-IP fixed-window: 20 req/min on chat, 3 req/hour on reindex |
 | **Security headers** | CSP, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy, HSTS |
 | **CSRF protection** | Content-Type validation (JSON-only on POST endpoints) |
-| **Admin protection** | `X-Admin-Key` header required for reindex endpoint |
+| **Chat protection** | Optional `X-Chat-Key` fixed-time validation via `CHAT_API_KEY` |
+| **Admin protection** | `X-Admin-Key` header required for reindex endpoint outside Development; fixed-time validation |
+| **Bearer auth mode** | Optional JWT bearer authentication for Entra-compatible production deployments |
 | **Debug mode gating** | Disabled in production; system prompt stripped from debug output |
 | **Input sanitization** | Control character stripping, invisible Unicode removal, whitespace normalization |
 | **Error handling** | Generic error responses in production — no stack traces or Azure SDK details |
@@ -266,10 +278,10 @@ Heading-aware markdown splitting: split on `##`/`###` boundaries, sub-split larg
 BM25 keyword search + HNSW vector search, merged by Azure AI Search's Reciprocal Rank Fusion, then re-ranked by Azure AI Search's semantic ranker (L2). Keyword catches exact terms and acronyms; vector catches semantic similarity and paraphrasing; semantic ranking uses deep language understanding to promote the most relevant results. Extractive captions and reranker scores are available in the debug panel.
 
 ### Grounding
-The system prompt restricts answers to provided context only. Temperature is set to 0.1. The LLM is instructed to cite sources using `[Source: filename]` format, and to say "not enough information" when evidence is insufficient.
+The system prompt restricts answers to provided context only. Temperature is set to 0.1. Each retrieved chunk is assigned a local source id such as `[S1]`, and the LLM is instructed to cite those source ids. If retrieval produces no relevant context, the orchestrator returns a deterministic "not enough information" response without calling the LLM.
 
 ### Citations
-`PromptBuilder.ExtractCitations` parses `[Source: filename]` references from the LLM response and matches them to retrieved chunks for source file, section, and evidence snippets.
+`PromptBuilder.ExtractCitations` parses source-id references such as `[S1]` from the LLM response and maps them back to retrieved chunks for source file, section, and evidence snippets. Unknown source ids are ignored.
 
 ## Sample Data
 
@@ -283,13 +295,13 @@ The system prompt restricts answers to provided context only. Temperature is set
 | `standard-api-design-guidelines.md` | Platform Standard |
 | `standard-observability.md` | Platform Standard |
 
-Plus 26 architecture documents in `docs/architecture/` covering solution design, security, reliability, cost, and operations.
+Plus 27 architecture documents in `docs/architecture/` covering solution design, security, reliability, cost, operations, and RAG evaluation.
 
 ## Limitations & Honest Trade-offs
 
 | Simplification | Why | Production Alternative |
 |---------------|-----|----------------------|
-| No user authentication | Focus on RAG pipeline | Azure AD / Entra ID |
+| No individual user identity | Focus on RAG pipeline | Azure AD / Entra ID |
 | Synchronous reindexing | Acceptable for ~33 docs | Background worker with progress |
 | No streaming | Avoids async endpoint complexity | SSE token-by-token delivery |
 | Environment variable secrets | Simpler local dev | Azure Key Vault |

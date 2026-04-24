@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using NSubstitute;
@@ -142,6 +143,89 @@ public class WebSecurityTests : IClassFixture<WebSecurityTests.TestWebFactory>
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 
+    // --- Chat API Key Protection ---
+
+    [Fact]
+    public async Task ChatApi_ConfiguredChatKey_RejectsWithoutKey()
+    {
+        var client = _factory.WithWebHostBuilder(builder =>
+        {
+            builder.UseSetting("Security:ChatApiKey", "test-chat-key");
+        }).CreateClient();
+
+        var response = await client.PostAsJsonAsync("/api/chat",
+            new { question = "What is our SLA?" });
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task ChatApi_ConfiguredChatKey_RejectsWrongKey()
+    {
+        var client = _factory.WithWebHostBuilder(builder =>
+        {
+            builder.UseSetting("Security:ChatApiKey", "test-chat-key");
+        }).CreateClient();
+
+        using var request = new HttpRequestMessage(HttpMethod.Post, "/api/chat")
+        {
+            Content = JsonContent.Create(new { question = "What is our SLA?" })
+        };
+        request.Headers.Add("X-Chat-Key", "wrong-key");
+
+        var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task ChatApi_ConfiguredChatKey_AcceptsCorrectKey()
+    {
+        var client = _factory.WithWebHostBuilder(builder =>
+        {
+            builder.UseSetting("Security:ChatApiKey", "test-chat-key");
+        }).CreateClient();
+
+        using var request = new HttpRequestMessage(HttpMethod.Post, "/api/chat")
+        {
+            Content = JsonContent.Create(new { question = "What is our SLA?" })
+        };
+        request.Headers.Add("X-Chat-Key", "test-chat-key");
+
+        var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task ChatApi_RequireChatKeyWithoutConfiguredKey_ReturnsServiceUnavailable()
+    {
+        var client = _factory.WithWebHostBuilder(builder =>
+        {
+            builder.UseSetting("Security:RequireChatApiKey", "true");
+            builder.UseSetting("Security:ChatApiKey", "");
+        }).CreateClient();
+
+        var response = await client.PostAsJsonAsync("/api/chat",
+            new { question = "What is our SLA?" });
+
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task ChatApi_BearerAuthMode_RejectsAnonymousRequest()
+    {
+        var client = _factory.WithWebHostBuilder(builder =>
+        {
+            ConfigureBearerAuth(builder);
+        }).CreateClient();
+
+        var response = await client.PostAsJsonAsync("/api/chat",
+            new { question = "What is our SLA?" });
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
     // --- Prompt Injection Logging (still returns 200 but input is sanitized) ---
 
     [Fact]
@@ -186,6 +270,34 @@ public class WebSecurityTests : IClassFixture<WebSecurityTests.TestWebFactory>
 
         // Passes auth check — may return BadRequest if no doc folders, that's OK
         Assert.NotEqual(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task ReindexApi_ProductionWithoutAdminKey_ReturnsServiceUnavailable()
+    {
+        var client = _factory.WithWebHostBuilder(builder =>
+        {
+            builder.UseEnvironment("Production");
+            builder.UseSetting("Security:AdminApiKey", "");
+        }).CreateClient();
+
+        var response = await client.PostAsync("/api/index/reindex", null);
+
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task ReindexApi_BearerAuthMode_RejectsAnonymousBeforeAdminKeyCheck()
+    {
+        var client = _factory.WithWebHostBuilder(builder =>
+        {
+            ConfigureBearerAuth(builder);
+            builder.UseSetting("Security:AdminApiKey", "");
+        }).CreateClient();
+
+        var response = await client.PostAsync("/api/index/reindex", null);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 
     // --- Debug Mode Gating ---
@@ -243,6 +355,14 @@ public class WebSecurityTests : IClassFixture<WebSecurityTests.TestWebFactory>
     }
 
     // --- Helper DTOs ---
+
+    private static void ConfigureBearerAuth(Microsoft.AspNetCore.Hosting.IWebHostBuilder builder)
+    {
+        builder.UseSetting("Security:AuthMode", "Bearer");
+        builder.UseSetting("Security:Jwt:Authority", "https://login.microsoftonline.com/test-tenant/v2.0");
+        builder.UseSetting("Security:Jwt:Audience", "api://rag-navigator-test");
+        builder.UseSetting("Security:Jwt:AdminRoles:0", "RAGNavigator.Admin");
+    }
 
     private sealed class ChatResponseDto
     {
@@ -308,7 +428,7 @@ public class WebSecurityTests : IClassFixture<WebSecurityTests.TestWebFactory>
             ReplaceService<IChatCompletionService>(services, mock =>
             {
                 mock.GenerateAnswerAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
-                    .Returns("The SLA is 99.9% [Source: test.md].");
+                    .Returns("The SLA is 99.9% [S1].");
             });
 
             ReplaceService<ISearchIndexService>(services, mock =>

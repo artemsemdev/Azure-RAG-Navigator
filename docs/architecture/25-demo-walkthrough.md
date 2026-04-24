@@ -83,8 +83,8 @@ Prepare for these follow-up questions from interviewers:
 |----------|-----------|
 | "How does the chunking work?" | Heading-aware markdown splitting, 1500-char max, 200-char overlap, paragraph boundary sub-splitting |
 | "Why not use Semantic Kernel?" | Transparency — direct SDK usage makes every pipeline step visible and explainable |
-| "How do you prevent hallucination?" | System prompt grounding, low temperature (0.1), relevance score filtering, citation extraction |
-| "What if the answer isn't in the documents?" | The system prompt instructs the LLM to say so; minimum relevance score filtering removes noise |
+| "How do you prevent hallucination?" | System prompt grounding, low temperature (0.1), relevance score filtering, deterministic no-context response, citation extraction |
+| "What if the answer isn't in the documents?" | If no relevant chunks remain after filtering, the orchestrator returns "not enough information" without calling the LLM |
 
 ### Architecture
 
@@ -112,7 +112,7 @@ Prepare for these follow-up questions from interviewers:
 
 | Simplification | Production Alternative | Why Simplified |
 |---------------|----------------------|----------------|
-| No user authentication | Azure AD / Entra ID | Focus on RAG pipeline, not auth plumbing |
+| No individual user identity | Azure AD / Entra ID | Optional chat API key exists; full user auth is out of demo scope |
 | Synchronous reindexing | Background worker with progress tracking | Acceptable for ~30 docs, avoids async job complexity |
 | No streaming | SSE token-by-token delivery | Requires additional endpoint and JS changes |
 | Environment variable secrets | Azure Key Vault | Simpler local dev, production path documented |
