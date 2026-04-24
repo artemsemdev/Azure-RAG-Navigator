@@ -104,11 +104,10 @@ This review evaluates RAG Navigator against the five pillars of the Azure Well-A
 - Comprehensive operations runbook covers common scenarios.
 
 **Weaknesses:**
-- Telemetry exporter is not yet wired to Application Insights or another backend.
 - No alert definitions or dashboards are provisioned yet.
-- Deprecated package checks are currently warning-only until dependency upgrades are completed.
+- CI package checks now fail on vulnerable or deprecated NuGet packages, but there is no automated dependency update workflow yet.
 
-**Next improvement:** Add OpenTelemetry/Application Insights export and alerting dashboards.
+**Next improvement:** Add alerting dashboards and SLO-based monitors.
 
 ---
 
@@ -145,7 +144,7 @@ This review evaluates RAG Navigator against the five pillars of the Azure Well-A
 | Reliability | 2 | Rebuildable index from source files | No health checks or circuit breakers |
 | Security | 2 | Managed identity support built in | No user auth, basic input validation |
 | Cost Optimization | 3 | Right-sized resources, documented cost model | No cost monitoring or caching |
-| Operational Excellence | 3 | Strong logging, debug mode, runbook, CI baseline, in-process telemetry | No telemetry exporter or alerts |
+| Operational Excellence | 3 | Strong logging, debug mode, runbook, CI baseline, OpenTelemetry export | No dashboards or alerts |
 | Performance Efficiency | 3 | Efficient batching and hybrid search | No streaming or caching |
 
 **Overall assessment:** The application is well-suited for its demo scope. The architecture documentation clearly identifies the gaps and the path to production readiness. The foundation (interfaces, clean layers, config validation) makes each improvement straightforward to add.

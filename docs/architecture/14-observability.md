@@ -46,22 +46,23 @@ This is useful for developers and reviewers to understand and evaluate retrieval
 ### Recommended Architecture
 
 ```
-Application → Application Insights SDK → Log Analytics Workspace → Grafana / Azure Dashboards
-                                                                  → Azure Monitor Alerts
+Application → OpenTelemetry Azure Monitor Exporter → Application Insights / Log Analytics
+                                                               → Grafana / Azure Dashboards
+                                                               → Azure Monitor Alerts
 ```
 
 ### Integration Path
 
-1. Add `Microsoft.ApplicationInsights.AspNetCore` package.
-2. Call `builder.Services.AddApplicationInsightsTelemetry()` in `Program.cs`.
-3. Configure the connection string via environment variable: `APPLICATIONINSIGHTS_CONNECTION_STRING`.
-4. Configure OpenTelemetry/Application Insights to listen to the `RAGNavigator` activity source and meter.
+1. Add `Azure.Monitor.OpenTelemetry.AspNetCore`.
+2. Configure `APPLICATIONINSIGHTS_CONNECTION_STRING` (mapped to `Observability:ApplicationInsightsConnectionString`).
+3. `Program.cs` calls `UseAzureMonitor()` and registers the `RAGNavigator` activity source and meter.
 
 This enables automatic collection of:
 - HTTP request telemetry (duration, status codes)
 - Dependency calls (Azure OpenAI, Azure AI Search)
 - Exceptions
 - W3C distributed traces
+- Custom RAG query and ingestion metrics from `RagTelemetry`
 
 The Terraform deployment also supports platform diagnostic settings. When `log_analytics_workspace_id` is provided, Azure OpenAI, Azure AI Search, and App Service diagnostics are sent to the configured Log Analytics workspace.
 

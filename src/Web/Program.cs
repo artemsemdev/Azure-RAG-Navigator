@@ -1,7 +1,11 @@
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading.RateLimiting;
+using Azure.Monitor.OpenTelemetry.AspNetCore;
 using Microsoft.AspNetCore.RateLimiting;
+using OpenTelemetry.Metrics;
+using OpenTelemetry.Trace;
+using RAGNavigator.Application.Observability;
 using RAGNavigator.Application.Services;
 using RAGNavigator.Infrastructure;
 using RAGNavigator.Web.Middleware;
@@ -15,6 +19,7 @@ MapEnvironmentVariables(builder.Configuration);
 
 builder.Services.AddRazorPages();
 builder.Services.AddRAGNavigatorServices(builder.Configuration);
+AddTelemetryExport(builder.Services, builder.Configuration);
 
 // --- Rate Limiting (per-IP) ---
 builder.Services.AddRateLimiter(options =>
@@ -297,7 +302,8 @@ static void MapEnvironmentVariables(ConfigurationManager config)
         ["RAG_MINIMUM_RELEVANCE_SCORE"] = "Rag:MinimumRelevanceScore",
         ["ADMIN_API_KEY"] = "Security:AdminApiKey",
         ["CHAT_API_KEY"] = "Security:ChatApiKey",
-        ["REQUIRE_CHAT_API_KEY"] = "Security:RequireChatApiKey"
+        ["REQUIRE_CHAT_API_KEY"] = "Security:RequireChatApiKey",
+        ["APPLICATIONINSIGHTS_CONNECTION_STRING"] = "Observability:ApplicationInsightsConnectionString"
     };
 
     foreach (var (envVar, configKey) in envMappings)
@@ -306,6 +312,26 @@ static void MapEnvironmentVariables(ConfigurationManager config)
         if (!string.IsNullOrEmpty(value))
             config[configKey] = value;
     }
+}
+
+static void AddTelemetryExport(IServiceCollection services, IConfiguration configuration)
+{
+    var connectionString = configuration.GetValue<string>("Observability:ApplicationInsightsConnectionString");
+    if (string.IsNullOrWhiteSpace(connectionString))
+        return;
+
+    services.AddOpenTelemetry()
+        .UseAzureMonitor(options => options.ConnectionString = connectionString);
+
+    services.ConfigureOpenTelemetryMeterProvider((_, metrics) =>
+    {
+        metrics.AddMeter(RagTelemetry.MeterName);
+    });
+
+    services.ConfigureOpenTelemetryTracerProvider((_, tracing) =>
+    {
+        tracing.AddSource(RagTelemetry.ActivitySourceName);
+    });
 }
 
 static string? FindRepoRoot()

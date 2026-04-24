@@ -67,9 +67,9 @@ This document defines the non-functional requirements for RAG Navigator, disting
 | Alerting | None | Error rate, latency P95, index health |
 | Debug mode | UI panel showing chunks + scores + prompt | Retain for dev; gate behind auth in production |
 
-**Current implementation:** Structured logging through `Microsoft.Extensions.Logging`. Debug mode exposes retrieval details in the UI. The app emits runtime metrics and spans through `RAGNavigator` `Meter` and `ActivitySource`; an exporter is not yet wired.
+**Current implementation:** Structured logging through `Microsoft.Extensions.Logging`. Debug mode exposes retrieval details in the UI. The app emits runtime metrics and spans through `RAGNavigator` `Meter` and `ActivitySource`; when `APPLICATIONINSIGHTS_CONNECTION_STRING` is configured, telemetry is exported through Azure Monitor OpenTelemetry.
 
-**Production path:** Add Application Insights/OpenTelemetry export. Create Grafana or Azure Monitor dashboards for query latency breakdown and retrieval quality signals.
+**Production path:** Create Grafana or Azure Monitor dashboards for query latency breakdown and retrieval quality signals.
 
 ## Scalability
 
