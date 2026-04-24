@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Text;
 using Microsoft.Extensions.Logging;
 using RAGNavigator.Application.Interfaces;
 using RAGNavigator.Application.Models;
@@ -34,7 +36,10 @@ public sealed class RagOrchestrator
         bool includeDebugInfo = false,
         CancellationToken cancellationToken = default)
     {
-        _logger.LogInformation("Processing question: {Question}", question);
+        _logger.LogInformation(
+            "Processing question ({QuestionLength} chars, fingerprint: {QuestionFingerprint})",
+            question.Length,
+            CreateQuestionFingerprint(question));
 
         // Step 1: Generate embedding for the query
         var queryEmbedding = await _embeddingService.GenerateEmbeddingAsync(question, cancellationToken);
@@ -107,5 +112,11 @@ public sealed class RagOrchestrator
                     : r.Chunk.Content
             }).ToList()
         };
+    }
+
+    private static string CreateQuestionFingerprint(string question)
+    {
+        var hash = SHA256.HashData(Encoding.UTF8.GetBytes(question));
+        return Convert.ToHexString(hash)[..12].ToLowerInvariant();
     }
 }
