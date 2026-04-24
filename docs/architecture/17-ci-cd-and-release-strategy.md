@@ -43,6 +43,16 @@ graph LR
 6. **Containerize:** Build Docker image from `src/Web`.
 7. **Push:** Push image to Azure Container Registry (ACR).
 
+### Security Gates
+
+| Workflow | Gate | Behavior |
+|----------|------|----------|
+| `ci.yml` | NuGet vulnerable/deprecated package audit | Fails the build on vulnerable or deprecated packages |
+| `ci.yml` | Terraform format/init/validate | Fails when infrastructure code is malformed or invalid |
+| `codeql.yml` | CodeQL C# security and quality analysis | Publishes code scanning findings on push, PR, and weekly schedule |
+| `security.yml` | Gitleaks secret scan | Fails on committed secrets in repository history |
+| `security.yml` | Trivy Terraform config scan | Fails on HIGH or CRITICAL IaC misconfigurations |
+
 ### Dockerfile Concept
 
 ```dockerfile
