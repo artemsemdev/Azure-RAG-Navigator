@@ -21,8 +21,9 @@ The initial harness lives in `tests/RAGNavigator.Tests/Evaluation`:
 | `RetrievalEvaluator` | Computes source recall for retrieved chunks |
 | `RetrievalEvaluationResult` | Captures matched, missing, retrieved files, and pass/fail status |
 | `RetrievalEvaluatorTests` | Verifies scorer behavior and validates that golden sources exist in the corpus |
+| `LiveRetrievalEvaluationTests` | Optional Azure-backed evaluation that reindexes an isolated eval index and runs golden questions end-to-end |
 
-The harness is intentionally independent of Azure. This keeps the default CI path deterministic and fast while creating a shared contract for future live retrieval evaluation.
+The default harness is independent of Azure. This keeps the normal CI path deterministic and fast while creating a shared contract for live retrieval evaluation. The live test is opt-in and only runs when explicitly enabled.
 
 ## Metric
 
@@ -64,17 +65,51 @@ The current CI test run validates:
 - Case-insensitive source matching.
 - Golden expected files exist in `sample-data/` or `docs/architecture/`.
 
-This does not yet run live Azure AI Search retrieval. It is the foundation for that next step.
+### Default CI
+
+```bash
+dotnet test RAGNavigator.sln --configuration Release
+```
+
+The live Azure-backed evaluation is skipped unless `RAG_NAVIGATOR_RUN_LIVE_RETRIEVAL_EVAL=1`.
+
+### Live Retrieval Evaluation
+
+The live evaluation:
+
+1. Builds the real application service graph.
+2. Reindexes `sample-data/` and `docs/architecture/`.
+3. Runs each golden question against Azure AI Search.
+4. Computes source recall@k.
+5. Deletes the evaluation index unless `RAG_EVAL_KEEP_INDEX=1`.
+
+Required environment variables:
+
+| Variable | Purpose |
+|----------|---------|
+| `RAG_NAVIGATOR_RUN_LIVE_RETRIEVAL_EVAL=1` | Explicitly enables live eval |
+| `RAG_EVAL_SEARCH_INDEX_NAME` | Dedicated eval index; must start with `rag-navigator-eval` |
+| `AZURE_OPENAI_ENDPOINT` | Azure OpenAI endpoint |
+| `AZURE_OPENAI_EMBEDDING_DEPLOYMENT` | Embedding deployment |
+| `AZURE_SEARCH_ENDPOINT` | Azure AI Search endpoint |
+| `AZURE_OPENAI_API_KEY` | Optional when managed identity / `az login` is available |
+| `AZURE_SEARCH_API_KEY` | Optional when managed identity / `az login` is available |
+
+Example:
+
+```bash
+export RAG_NAVIGATOR_RUN_LIVE_RETRIEVAL_EVAL=1
+export RAG_EVAL_SEARCH_INDEX_NAME="rag-navigator-eval-dev"
+dotnet test RAGNavigator.sln --configuration Release --filter "Category=Integration"
+```
+
+The eval index name guard prevents accidentally deleting a non-evaluation search index during reindex.
 
 ## Next Steps
 
-1. Add an opt-in integration test profile that:
-   - Reindexes the sample corpus.
-   - Runs each golden question against Azure AI Search.
-   - Fails when source recall drops below threshold.
-2. Store evaluation output as a CI artifact.
-3. Add answer-level checks:
+1. Store live evaluation output as a CI artifact.
+2. Add answer-level checks:
    - Citation precision.
    - Groundedness.
    - Refusal accuracy for out-of-corpus questions.
-4. Track eval trends over time for retrieval and prompt changes.
+3. Track eval trends over time for retrieval and prompt changes.

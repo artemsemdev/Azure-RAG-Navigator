@@ -80,6 +80,18 @@ graph LR
 | **Staging** | Automatic after dev passes | Integration tests: reindex, query, verify citations and retrieval source recall |
 | **Production** | Manual approval gate | Verified by staging results |
 
+### RAG Evaluation Gate
+
+Default CI runs the deterministic evaluation tests with the rest of the unit suite. Staging can additionally run the live Azure-backed retrieval evaluation:
+
+```bash
+export RAG_NAVIGATOR_RUN_LIVE_RETRIEVAL_EVAL=1
+export RAG_EVAL_SEARCH_INDEX_NAME="rag-navigator-eval-staging"
+dotnet test RAGNavigator.sln --configuration Release --filter "Category=Integration"
+```
+
+The live eval uses a dedicated search index whose name must start with `rag-navigator-eval` so the reindex step cannot accidentally delete a production or shared index.
+
 ### Smoke Test (Dev)
 
 ```bash
