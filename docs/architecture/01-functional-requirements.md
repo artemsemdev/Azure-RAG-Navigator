@@ -113,7 +113,7 @@ Input: User question (string)
   │   └─ User: Retrieved chunks + escaped question
   │
   ├─ Send to Azure OpenAI (temperature=0.1)
-  ├─ Parse [Source: filename] citations from response
+  ├─ Parse [S1]-style source-id citations from response
   └─ Return: answer, citations[], optional debug info
 ```
 

@@ -11,7 +11,7 @@ namespace RAGNavigator.Application.Services;
 /// </summary>
 public static partial class PromptBuilder
 {
-    [GeneratedRegex(@"\[Source:\s*([^\]]+)\]")]
+    [GeneratedRegex(@"\[S(?<index>\d+)\]")]
     private static partial Regex SourceCitationPattern();
 
     public const string InsufficientContextAnswer =
@@ -24,7 +24,7 @@ public static partial class PromptBuilder
 
         Rules:
         - Base your answer strictly on the provided context. Do not use prior knowledge.
-        - Cite every claim using [Source: filename] format.
+        - Cite every claim using the provided source id format, for example [S1].
         - If multiple sources support a point, cite all of them.
         - If the provided context does not contain enough information to answer the question,
           say: "I don't have enough information in the indexed documents to answer this question."
@@ -47,7 +47,7 @@ public static partial class PromptBuilder
         for (var i = 0; i < retrievalResults.Count; i++)
         {
             var result = retrievalResults[i];
-            sb.AppendLine($"--- Source #{i + 1}: {result.Chunk.FileName} | Section: {result.Chunk.Section} ---");
+            sb.AppendLine($"--- [S{i + 1}] {result.Chunk.FileName} | Section: {result.Chunk.Section} ---");
             sb.AppendLine(result.Chunk.Content);
             sb.AppendLine();
         }
@@ -59,7 +59,7 @@ public static partial class PromptBuilder
         sb.AppendLine(EscapePromptText(question));
         sb.AppendLine("</user_question>");
         sb.AppendLine();
-        sb.AppendLine("Answer the question based only on the context above. Cite your sources.");
+        sb.AppendLine("Answer the question based only on the context above. Cite your sources using [S1], [S2], etc.");
 
         return sb.ToString();
     }
@@ -71,45 +71,35 @@ public static partial class PromptBuilder
         var cited = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var citations = new List<Citation>();
 
-        // Find all [Source: filename] references in the answer
+        // Find all source-id references in the answer and map only to retrieved chunks.
         foreach (Match match in SourceCitationPattern().Matches(answer))
         {
-            var fileName = match.Groups[1].Value.Trim();
-            if (!cited.Add(fileName))
+            var sourceId = match.Value.Trim('[', ']');
+            if (!cited.Add(sourceId))
                 continue;
 
-            // Find the matching chunk to build a citation
-            var matchingResult = retrievalResults
-                .FirstOrDefault(r => r.Chunk.FileName.Equals(fileName, StringComparison.OrdinalIgnoreCase));
+            if (!int.TryParse(match.Groups["index"].Value, out var sourceNumber))
+                continue;
 
-            if (matchingResult is not null)
-            {
-                citations.Add(new Citation
-                {
-                    FileName = matchingResult.Chunk.FileName,
-                    DocumentTitle = matchingResult.Chunk.DocumentTitle,
-                    Section = matchingResult.Chunk.Section,
-                    Snippet = Truncate(matchingResult.Chunk.Content, 200)
-                });
-            }
+            var resultIndex = sourceNumber - 1;
+            if (resultIndex < 0 || resultIndex >= retrievalResults.Count)
+                continue;
+
+            citations.Add(BuildCitation(sourceId, retrievalResults[resultIndex]));
         }
 
         // If no explicit citations were parsed, build citations from all retrieved chunks
         // so the user always sees what evidence was used
         if (citations.Count == 0)
         {
-            foreach (var result in retrievalResults)
+            for (var i = 0; i < retrievalResults.Count; i++)
             {
-                if (!cited.Add(result.Chunk.FileName))
+                var sourceId = $"S{i + 1}";
+                var result = retrievalResults[i];
+                if (!cited.Add(sourceId))
                     continue;
 
-                citations.Add(new Citation
-                {
-                    FileName = result.Chunk.FileName,
-                    DocumentTitle = result.Chunk.DocumentTitle,
-                    Section = result.Chunk.Section,
-                    Snippet = Truncate(result.Chunk.Content, 200)
-                });
+                citations.Add(BuildCitation(sourceId, result));
             }
         }
 
@@ -118,6 +108,16 @@ public static partial class PromptBuilder
 
     private static string Truncate(string value, int maxLength) =>
         value.Length <= maxLength ? value : string.Concat(value.AsSpan(0, maxLength), "...");
+
+    private static Citation BuildCitation(string sourceId, RetrievalResult result) =>
+        new()
+        {
+            SourceId = sourceId,
+            FileName = result.Chunk.FileName,
+            DocumentTitle = result.Chunk.DocumentTitle,
+            Section = result.Chunk.Section,
+            Snippet = Truncate(result.Chunk.Content, 200)
+        };
 
     private static string EscapePromptText(string value) =>
         value

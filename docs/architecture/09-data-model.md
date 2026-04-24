@@ -56,6 +56,7 @@ A source reference parsed from the LLM's answer.
 
 ```
 Citation
+├── SourceId: string          # Local source id from the prompt, e.g. S1
 ├── FileName: string          # Source file name
 ├── DocumentTitle: string     # Document title
 ├── Section: string           # Section within the document

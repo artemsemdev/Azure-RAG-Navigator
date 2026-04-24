@@ -22,6 +22,8 @@ public class PromptBuilderTests
         Assert.Contains("Content about topic B.", prompt);
         Assert.Contains("doc.md", prompt);
         Assert.Contains("other.md", prompt);
+        Assert.Contains("[S1] doc.md", prompt);
+        Assert.Contains("[S2] other.md", prompt);
     }
 
     [Fact]
@@ -55,14 +57,14 @@ public class PromptBuilderTests
             MakeResult("adr.md", "Decision", "We chose event-driven architecture.")
         };
 
-        var answer = "According to [Source: runbook.md], you should follow the failover steps. " +
-                     "The architecture is based on [Source: adr.md].";
+        var answer = "According to [S1], you should follow the failover steps. " +
+                     "The architecture is based on [S2].";
 
         var citations = PromptBuilder.ExtractCitations(answer, results);
 
         Assert.Equal(2, citations.Count);
-        Assert.Contains(citations, c => c.FileName == "runbook.md");
-        Assert.Contains(citations, c => c.FileName == "adr.md");
+        Assert.Contains(citations, c => c.SourceId == "S1" && c.FileName == "runbook.md");
+        Assert.Contains(citations, c => c.SourceId == "S2" && c.FileName == "adr.md");
     }
 
     [Fact]
@@ -73,11 +75,12 @@ public class PromptBuilderTests
             MakeResult("doc.md", "Section", "Some content here.")
         };
 
-        var answer = "[Source: doc.md] first mention. [Source: doc.md] second mention.";
+        var answer = "[S1] first mention. [S1] second mention.";
 
         var citations = PromptBuilder.ExtractCitations(answer, results);
 
         Assert.Single(citations);
+        Assert.Equal("S1", citations[0].SourceId);
     }
 
     [Fact]
@@ -94,6 +97,7 @@ public class PromptBuilderTests
         var citations = PromptBuilder.ExtractCitations(answer, results);
 
         Assert.Equal(2, citations.Count);
+        Assert.Equal(["S1", "S2"], citations.Select(c => c.SourceId).ToArray());
     }
 
     [Fact]
@@ -104,11 +108,12 @@ public class PromptBuilderTests
             MakeResult("guide.md", "API Design", "Use plural nouns for REST resources.")
         };
 
-        var answer = "As stated in [Source: guide.md], use plural nouns.";
+        var answer = "As stated in [S1], use plural nouns.";
 
         var citations = PromptBuilder.ExtractCitations(answer, results);
 
         Assert.Single(citations);
+        Assert.Equal("S1", citations[0].SourceId);
         Assert.Equal("API Design", citations[0].Section);
         Assert.Contains("plural nouns", citations[0].Snippet);
     }
@@ -117,7 +122,7 @@ public class PromptBuilderTests
     public void SystemPrompt_ContainsKeyInstructions()
     {
         Assert.Contains("ONLY the provided context", PromptBuilder.SystemPrompt);
-        Assert.Contains("[Source: filename]", PromptBuilder.SystemPrompt);
+        Assert.Contains("[S1]", PromptBuilder.SystemPrompt);
         Assert.Contains("don't have enough information", PromptBuilder.SystemPrompt);
     }
 

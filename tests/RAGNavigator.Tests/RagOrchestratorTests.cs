@@ -44,7 +44,7 @@ public class RagOrchestratorTests
         _retrievalService.SearchAsync(question, Arg.Any<ReadOnlyMemory<float>>(), 5, Arg.Any<CancellationToken>())
             .Returns(retrievalResults);
         _chatService.GenerateAnswerAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns("To deploy, run kubectl apply [Source: runbook.md]. The CI/CD pipeline handles this [Source: guide.md].");
+            .Returns("To deploy, run kubectl apply [S1]. The CI/CD pipeline handles this [S2].");
 
         // Act
         var response = await _orchestrator.AskAsync(question);
@@ -52,8 +52,8 @@ public class RagOrchestratorTests
         // Assert
         Assert.Contains("kubectl apply", response.Answer);
         Assert.Equal(2, response.Citations.Count);
-        Assert.Contains(response.Citations, c => c.FileName == "runbook.md");
-        Assert.Contains(response.Citations, c => c.FileName == "guide.md");
+        Assert.Contains(response.Citations, c => c.SourceId == "S1" && c.FileName == "runbook.md");
+        Assert.Contains(response.Citations, c => c.SourceId == "S2" && c.FileName == "guide.md");
         Assert.Null(response.Debug);
     }
 
@@ -72,7 +72,7 @@ public class RagOrchestratorTests
         _retrievalService.SearchAsync(question, Arg.Any<ReadOnlyMemory<float>>(), 5, Arg.Any<CancellationToken>())
             .Returns(results);
         _chatService.GenerateAnswerAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns("The system uses microservices [Source: arch.md].");
+            .Returns("The system uses microservices [S1].");
 
         // Act
         var response = await _orchestrator.AskAsync(question, includeDebugInfo: true);
@@ -121,7 +121,7 @@ public class RagOrchestratorTests
         _retrievalService.SearchAsync(question, Arg.Any<ReadOnlyMemory<float>>(), 5, Arg.Any<CancellationToken>())
             .Returns(results);
         _chatService.GenerateAnswerAsync(Arg.Any<string>(), Arg.Is<string>(p => !p.Contains("Unrelated content.")), Arg.Any<CancellationToken>())
-            .Returns("Our SLA is 99.9% uptime [Source: sla.md].");
+            .Returns("Our SLA is 99.9% uptime [S1].");
 
         // Act
         var response = await _orchestrator.AskAsync(question);
@@ -154,7 +154,7 @@ public class RagOrchestratorTests
         _retrievalService.SearchAsync(question, Arg.Any<ReadOnlyMemory<float>>(), 8, Arg.Any<CancellationToken>())
             .Returns(results);
         _chatService.GenerateAnswerAsync(Arg.Any<string>(), Arg.Is<string>(p => !p.Contains("Unrelated content.")), Arg.Any<CancellationToken>())
-            .Returns("Our SLA is 99.9% uptime [Source: sla.md].");
+            .Returns("Our SLA is 99.9% uptime [S1].");
 
         // Act
         var response = await orchestrator.AskAsync(question);
@@ -215,7 +215,7 @@ public class RagOrchestratorTests
                 };
             });
         _chatService.GenerateAnswerAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns(ci => { callOrder.Add("chat"); return "Daily snapshots [Source: backup.md]."; });
+            .Returns(ci => { callOrder.Add("chat"); return "Daily snapshots [S1]."; });
 
         // Act
         await _orchestrator.AskAsync(question);
@@ -260,7 +260,7 @@ public class RagOrchestratorTests
                 MakeResult("backup.md", "Backups", "Daily snapshots.", 0.70)
             });
         _chatService.GenerateAnswerAsync(Arg.Any<string>(), Arg.Any<string>(), token)
-            .Returns("Daily snapshots [Source: backup.md].");
+            .Returns("Daily snapshots [S1].");
 
         // Act
         await _orchestrator.AskAsync("test", cancellationToken: token);
@@ -289,7 +289,7 @@ public class RagOrchestratorTests
         _retrievalService.SearchAsync(question, Arg.Any<ReadOnlyMemory<float>>(), 5, Arg.Any<CancellationToken>())
             .Returns(results);
         _chatService.GenerateAnswerAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns("Deploy with kubectl [Source: deploy.md].");
+            .Returns("Deploy with kubectl [S1].");
 
         // Act
         var response = await _orchestrator.AskAsync(question, includeDebugInfo: true);
@@ -323,7 +323,7 @@ public class RagOrchestratorTests
         _retrievalService.SearchAsync(question, Arg.Any<ReadOnlyMemory<float>>(), 5, Arg.Any<CancellationToken>())
             .Returns(results);
         _chatService.GenerateAnswerAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns("Daily snapshots [Source: backup.md].");
+            .Returns("Daily snapshots [S1].");
 
         // Act
         var response = await _orchestrator.AskAsync(question, includeDebugInfo: true);

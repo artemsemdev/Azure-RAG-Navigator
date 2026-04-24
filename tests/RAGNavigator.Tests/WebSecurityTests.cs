@@ -323,7 +323,7 @@ public class WebSecurityTests : IClassFixture<WebSecurityTests.TestWebFactory>
             ReplaceService<IChatCompletionService>(services, mock =>
             {
                 mock.GenerateAnswerAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
-                    .Returns("The SLA is 99.9% [Source: test.md].");
+                    .Returns("The SLA is 99.9% [S1].");
             });
 
             ReplaceService<ISearchIndexService>(services, mock =>

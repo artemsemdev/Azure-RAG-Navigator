@@ -49,7 +49,7 @@ sequenceDiagram
     Note over RO: Step 5: Generate answer
     RO->>CS: GenerateAnswerAsync(systemPrompt, userPrompt)
     CS->>AOAI: POST /chat/completions (temp=0.1)
-    AOAI-->>CS: Answer text with [Source: ...] citations
+    AOAI-->>CS: Answer text with [S1]-style citations
     CS-->>RO: answer string
 
     Note over RO: Step 6: Extract citations

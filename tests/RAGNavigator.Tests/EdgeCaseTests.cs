@@ -199,7 +199,7 @@ public class EdgeCaseTests
     }
 
     [Fact]
-    public void ExtractCitations_MalformedSourceTags_HandledGracefully()
+    public void ExtractCitations_MalformedSourceIds_HandledGracefully()
     {
         var results = new List<RetrievalResult>
         {
@@ -207,31 +207,31 @@ public class EdgeCaseTests
         };
 
         // Various malformed citation patterns
-        var answer = "Some text [Source: valid.md]. " +
-                     "Broken [Source: ] empty. " +
-                     "Unclosed [Source: missing. " +
-                     "Normal [Source: valid.md] again.";
+        var answer = "Some text [S1]. Broken [S] empty. Unclosed [S1. Normal [S1] again.";
 
         var citations = PromptBuilder.ExtractCitations(answer, results);
 
-        // Should still extract the valid citation
-        Assert.Contains(citations, c => c.FileName == "valid.md");
+        // Should still extract the valid source id once.
+        Assert.Single(citations);
+        Assert.Equal("S1", citations[0].SourceId);
+        Assert.Equal("valid.md", citations[0].FileName);
     }
 
     [Fact]
-    public void ExtractCitations_SourceNotInResults_Ignored()
+    public void ExtractCitations_SourceIdNotInResults_Ignored()
     {
         var results = new List<RetrievalResult>
         {
             MakeResult("known.md", "Section", "Known content.")
         };
 
-        var answer = "See [Source: known.md] and [Source: unknown.md].";
+        var answer = "See [S1] and [S2].";
 
         var citations = PromptBuilder.ExtractCitations(answer, results);
 
-        // Only the known file should produce a citation
+        // Only the known source id should produce a citation
         Assert.Single(citations);
+        Assert.Equal("S1", citations[0].SourceId);
         Assert.Equal("known.md", citations[0].FileName);
     }
 
@@ -247,6 +247,7 @@ public class EdgeCaseTests
         var citations = PromptBuilder.ExtractCitations("", results);
 
         Assert.Equal(2, citations.Count);
+        Assert.Equal(["S1", "S2"], citations.Select(c => c.SourceId).ToArray());
     }
 
     private static RetrievalResult MakeResult(string fileName, string section, string content, double score = 0.85)

@@ -270,10 +270,10 @@ Heading-aware markdown splitting: split on `##`/`###` boundaries, sub-split larg
 BM25 keyword search + HNSW vector search, merged by Azure AI Search's Reciprocal Rank Fusion, then re-ranked by Azure AI Search's semantic ranker (L2). Keyword catches exact terms and acronyms; vector catches semantic similarity and paraphrasing; semantic ranking uses deep language understanding to promote the most relevant results. Extractive captions and reranker scores are available in the debug panel.
 
 ### Grounding
-The system prompt restricts answers to provided context only. Temperature is set to 0.1. The LLM is instructed to cite sources using `[Source: filename]` format. If retrieval produces no relevant context, the orchestrator returns a deterministic "not enough information" response without calling the LLM.
+The system prompt restricts answers to provided context only. Temperature is set to 0.1. Each retrieved chunk is assigned a local source id such as `[S1]`, and the LLM is instructed to cite those source ids. If retrieval produces no relevant context, the orchestrator returns a deterministic "not enough information" response without calling the LLM.
 
 ### Citations
-`PromptBuilder.ExtractCitations` parses `[Source: filename]` references from the LLM response and matches them to retrieved chunks for source file, section, and evidence snippets.
+`PromptBuilder.ExtractCitations` parses source-id references such as `[S1]` from the LLM response and maps them back to retrieved chunks for source file, section, and evidence snippets. Unknown source ids are ignored.
 
 ## Sample Data
 

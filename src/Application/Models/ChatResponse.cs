@@ -12,6 +12,7 @@ public sealed record ChatResponse
 
 public sealed class Citation
 {
+    public required string SourceId { get; init; }
     public required string FileName { get; init; }
     public required string DocumentTitle { get; init; }
     public required string Section { get; init; }

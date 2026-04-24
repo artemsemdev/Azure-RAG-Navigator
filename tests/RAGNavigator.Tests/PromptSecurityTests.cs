@@ -80,7 +80,7 @@ public class PromptSecurityTests
         var prompt = PromptBuilder.SystemPrompt;
 
         Assert.Contains("ONLY the provided context", prompt);
-        Assert.Contains("[Source: filename]", prompt);
+        Assert.Contains("[S1]", prompt);
         Assert.Contains("enough information", prompt);
         Assert.Contains("Do not use prior knowledge", prompt);
     }
