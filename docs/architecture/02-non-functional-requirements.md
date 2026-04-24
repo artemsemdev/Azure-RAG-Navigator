@@ -62,14 +62,14 @@ This document defines the non-functional requirements for RAG Navigator, disting
 | Aspect | Demo (Current) | Production Target |
 |--------|---------------|-------------------|
 | Logging | `ILogger` with structured messages | Application Insights with W3C trace context |
-| Metrics | None | Request duration, search latency, embedding latency |
-| Tracing | None | Distributed traces across embedding → search → LLM |
+| Metrics | .NET `Meter` instruments for query and ingestion paths | Exported dashboards with SLOs and alerting |
+| Tracing | .NET `ActivitySource` spans for query and ingestion paths | Distributed traces across embedding → search → LLM |
 | Alerting | None | Error rate, latency P95, index health |
 | Debug mode | UI panel showing chunks + scores + prompt | Retain for dev; gate behind auth in production |
 
-**Current implementation:** Structured logging through `Microsoft.Extensions.Logging`. Debug mode exposes retrieval details in the UI. No metrics or distributed tracing.
+**Current implementation:** Structured logging through `Microsoft.Extensions.Logging`. Debug mode exposes retrieval details in the UI. The app emits runtime metrics and spans through `RAGNavigator` `Meter` and `ActivitySource`; an exporter is not yet wired.
 
-**Production path:** Add Application Insights SDK. Emit custom metrics for each pipeline stage. Create Grafana dashboards for query latency breakdown.
+**Production path:** Add Application Insights/OpenTelemetry export. Create Grafana or Azure Monitor dashboards for query latency breakdown and retrieval quality signals.
 
 ## Scalability
 

@@ -297,7 +297,7 @@ Plus 27 architecture documents in `docs/architecture/` covering solution design,
 
 | Simplification | Why | Production Alternative |
 |---------------|-----|----------------------|
-| No user authentication | Focus on RAG pipeline | Azure AD / Entra ID |
+| No individual user identity | Focus on RAG pipeline | Azure AD / Entra ID |
 | Synchronous reindexing | Acceptable for ~33 docs | Background worker with progress |
 | No streaming | Avoids async endpoint complexity | SSE token-by-token delivery |
 | Environment variable secrets | Simpler local dev | Azure Key Vault |

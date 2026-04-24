@@ -112,7 +112,7 @@ Prepare for these follow-up questions from interviewers:
 
 | Simplification | Production Alternative | Why Simplified |
 |---------------|----------------------|----------------|
-| No user authentication | Azure AD / Entra ID | Focus on RAG pipeline, not auth plumbing |
+| No individual user identity | Azure AD / Entra ID | Optional chat API key exists; full user auth is out of demo scope |
 | Synchronous reindexing | Background worker with progress tracking | Acceptable for ~30 docs, avoids async job complexity |
 | No streaming | SSE token-by-token delivery | Requires additional endpoint and JS changes |
 | Environment variable secrets | Azure Key Vault | Simpler local dev, production path documented |

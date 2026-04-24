@@ -250,5 +250,5 @@ The `POST /api/chat` endpoint is anonymous by default for local demo use. When `
 | App → Azure OpenAI | API key (full access) | Managed identity + "Cognitive Services OpenAI User" role |
 | App → Azure AI Search | API key (admin access) | Managed identity + "Search Index Data Contributor" role |
 | App → File System | OS user permissions | Read-only mount in container |
-| End User → App | No authentication (rate-limited) | Azure AD authentication + RBAC |
+| End User → App | Optional API key (`X-Chat-Key`) + rate limiting | Azure AD authentication + RBAC |
 | Admin → Reindex | API key (`X-Admin-Key` header) | Azure AD with admin role |
