@@ -4,6 +4,16 @@
 
 RAG Navigator supports two authentication modes for accessing Azure services, designed to be flexible for local development while being production-ready with managed identity.
 
+Endpoint access is intentionally separate from Azure service access:
+
+| Endpoint | Current Auth | Production Direction |
+|----------|--------------|----------------------|
+| `POST /api/chat` | Optional `X-Chat-Key` when `Security:ChatApiKey` / `CHAT_API_KEY` is configured | Entra ID bearer tokens with user/group claims |
+| `POST /api/index/reindex` | `X-Admin-Key` when `Security:AdminApiKey` / `ADMIN_API_KEY` is configured; required outside Development | Entra ID admin role or managed operations job |
+| Read-only pages / document list | Anonymous demo access | Entra ID or network-restricted internal app |
+
+Set `Security:RequireChatApiKey=true` / `REQUIRE_CHAT_API_KEY=true` to make `/api/chat` fail closed if the chat API key is not configured.
+
 ### Local Development: API Keys
 
 For local development, API keys are the simplest path to getting started:
@@ -117,9 +127,9 @@ The same pattern is used for `SearchIndexClient` and `SearchClient`. This means:
 - API key auth: set the key in config → used immediately.
 - Managed identity / az login: leave the key empty → `DefaultAzureCredential` is used.
 
-## End-User Authentication (Not Implemented)
+## End-User Authentication
 
-The current demo has no end-user authentication. For production:
+The current implementation provides API-key endpoint gates but does not yet model individual users. For production:
 
 | Approach | Implementation |
 |----------|---------------|

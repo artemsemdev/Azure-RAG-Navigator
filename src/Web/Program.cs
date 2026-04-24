@@ -70,6 +70,8 @@ app.MapRazorPages();
 // --- Configuration ---
 var debugEnabled = app.Configuration.GetValue("Security:DebugModeEnabled", app.Environment.IsDevelopment());
 var adminKey = app.Configuration.GetValue<string>("Security:AdminApiKey") ?? "";
+var chatApiKey = app.Configuration.GetValue<string>("Security:ChatApiKey") ?? "";
+var requireChatApiKey = app.Configuration.GetValue("Security:RequireChatApiKey", false);
 
 // --- API Endpoints ---
 
@@ -83,6 +85,10 @@ app.MapPost("/api/chat", async (
     // CSRF: reject requests without JSON content type (HTML forms can't send application/json)
     if (!HasJsonContentType(httpContext))
         return Results.BadRequest(new { error = "Content-Type must be application/json." });
+
+    var chatAuthResult = AuthorizeChatRequest(httpContext, logger, chatApiKey, requireChatApiKey);
+    if (chatAuthResult is not null)
+        return chatAuthResult;
 
     if (string.IsNullOrWhiteSpace(request.Question))
         return Results.BadRequest(new { error = "Question is required." });
@@ -223,6 +229,39 @@ static bool HasJsonContentType(HttpContext context)
 
 static bool IsAdminKeyValid(string? providedKey, string configuredKey)
 {
+    return IsFixedTimeSecretValid(providedKey, configuredKey);
+}
+
+static IResult? AuthorizeChatRequest(
+    HttpContext context,
+    ILogger logger,
+    string configuredKey,
+    bool requireKey)
+{
+    if (string.IsNullOrEmpty(configuredKey))
+    {
+        if (!requireKey)
+            return null;
+
+        logger.LogError("Chat endpoint disabled because Security:ChatApiKey is required but not configured.");
+        return Results.Json(
+            new { error = "Chat authentication is not configured." },
+            statusCode: StatusCodes.Status503ServiceUnavailable);
+    }
+
+    var providedKey = context.Request.Headers["X-Chat-Key"].FirstOrDefault();
+    if (IsFixedTimeSecretValid(providedKey, configuredKey))
+        return null;
+
+    logger.LogWarning(
+        "Unauthorized chat attempt from {IP}",
+        context.Connection.RemoteIpAddress);
+
+    return Results.Json(new { error = "Unauthorized." }, statusCode: StatusCodes.Status401Unauthorized);
+}
+
+static bool IsFixedTimeSecretValid(string? providedKey, string configuredKey)
+{
     if (string.IsNullOrEmpty(providedKey) || string.IsNullOrEmpty(configuredKey))
         return false;
 
@@ -256,7 +295,9 @@ static void MapEnvironmentVariables(ConfigurationManager config)
         ["AZURE_SEARCH_API_KEY"] = "AzureSearch:ApiKey",
         ["RAG_TOP_K"] = "Rag:TopK",
         ["RAG_MINIMUM_RELEVANCE_SCORE"] = "Rag:MinimumRelevanceScore",
-        ["ADMIN_API_KEY"] = "Security:AdminApiKey"
+        ["ADMIN_API_KEY"] = "Security:AdminApiKey",
+        ["CHAT_API_KEY"] = "Security:ChatApiKey",
+        ["REQUIRE_CHAT_API_KEY"] = "Security:RequireChatApiKey"
     };
 
     foreach (var (envVar, configKey) in envMappings)

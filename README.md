@@ -226,6 +226,8 @@ Click **Reindex** in the sidebar to index all documents, then ask questions.
 | **DefaultAzureCredential** | Azure / `az login` | Leave API key vars empty |
 | **Managed Identity** | Production | Assign RBAC roles, no keys needed |
 
+For endpoint access, `/api/chat` is anonymous by default for local demo use. Set `CHAT_API_KEY` to require `X-Chat-Key` on chat requests; set `REQUIRE_CHAT_API_KEY=true` to fail closed if the key is missing. Reindex remains protected by `X-Admin-Key` when `ADMIN_API_KEY` is configured.
+
 **Required RBAC roles (production):**
 - **Cognitive Services OpenAI User** on the Azure OpenAI resource
 - **Search Index Data Contributor** on the Azure AI Search resource
@@ -238,6 +240,7 @@ Click **Reindex** in the sidebar to index all documents, then ask questions.
 | **Rate limiting** | Per-IP fixed-window: 20 req/min on chat, 3 req/hour on reindex |
 | **Security headers** | CSP, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy, HSTS |
 | **CSRF protection** | Content-Type validation (JSON-only on POST endpoints) |
+| **Chat protection** | Optional `X-Chat-Key` fixed-time validation via `CHAT_API_KEY` |
 | **Admin protection** | `X-Admin-Key` header required for reindex endpoint outside Development; fixed-time validation |
 | **Debug mode gating** | Disabled in production; system prompt stripped from debug output |
 | **Input sanitization** | Control character stripping, invisible Unicode removal, whitespace normalization |

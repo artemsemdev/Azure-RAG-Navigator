@@ -33,14 +33,14 @@ This document defines the non-functional requirements for RAG Navigator, disting
 
 | Aspect | Demo (Current) | Production Target |
 |--------|---------------|-------------------|
-| Authentication | None (open access) | Azure AD / Entra ID |
+| Authentication | Optional `X-Chat-Key` for chat, `X-Admin-Key` for reindex | Azure AD / Entra ID |
 | Transport | HTTP (local dev) | HTTPS with TLS 1.2+ |
 | Secret management | Environment variables | Azure Key Vault |
 | Input validation | Basic null/empty checks | Input sanitization + length limits |
 | Prompt injection | LLM instruction only | Input filtering + output validation |
 | Data classification | Internal engineering docs | Classify and enforce per-document access |
 
-**Current implementation:** No authentication. API keys in environment variables. The LLM system prompt provides instruction-level grounding only.
+**Current implementation:** Chat authentication is optional and fail-closed when `Security:RequireChatApiKey=true`. Reindexing uses an admin key outside Development. Azure service credentials are API keys or managed identity.
 
 **Production path:** Add Azure AD authentication. Store secrets in Key Vault. Implement prompt injection detection. Apply RBAC-based document filtering in search queries.
 

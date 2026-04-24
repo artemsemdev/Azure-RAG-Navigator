@@ -94,6 +94,10 @@ API POST endpoints validate `Content-Type: application/json`. HTML forms cannot 
 
 The `POST /api/index/reindex` endpoint requires an `X-Admin-Key` header matching the `ADMIN_API_KEY` environment variable outside Development. The comparison uses a SHA-256 hash plus fixed-time comparison to avoid leaking timing information. If `ADMIN_API_KEY` is missing in a non-development environment, reindexing is disabled with HTTP 503. This prevents unauthorized reindexing (which could be used for DoS).
 
+### Chat API Key Protection
+
+The `POST /api/chat` endpoint is anonymous by default for local demo use. When `CHAT_API_KEY` / `Security:ChatApiKey` is configured, chat requests must include `X-Chat-Key`. Validation uses the same SHA-256 plus fixed-time comparison pattern as the admin key. If `REQUIRE_CHAT_API_KEY=true` is set without a configured key, the chat endpoint fails closed with HTTP 503.
+
 ### Debug Mode Gating
 
 - Debug mode is **disabled by default** in production (enabled only in Development environment or when `Security:DebugModeEnabled` is explicitly set to `true`).
@@ -126,6 +130,7 @@ The `POST /api/index/reindex` endpoint requires an `X-Admin-Key` header matching
 - System prompt includes explicit security instructions against instruction override.
 - Low temperature (0.1) reduces the model's tendency to follow creative instructions.
 - Input length limited to 2000 characters.
+- Optional `X-Chat-Key` can restrict chat access before the RAG pipeline runs.
 
 **Residual risk:** Sophisticated injection attacks using novel patterns can still bypass regex-based detection. The multi-layered approach (sanitization + structural delimiters + system prompt hardening) makes exploitation significantly harder but not impossible.
 

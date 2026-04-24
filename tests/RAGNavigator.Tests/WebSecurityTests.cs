@@ -143,6 +143,75 @@ public class WebSecurityTests : IClassFixture<WebSecurityTests.TestWebFactory>
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 
+    // --- Chat API Key Protection ---
+
+    [Fact]
+    public async Task ChatApi_ConfiguredChatKey_RejectsWithoutKey()
+    {
+        var client = _factory.WithWebHostBuilder(builder =>
+        {
+            builder.UseSetting("Security:ChatApiKey", "test-chat-key");
+        }).CreateClient();
+
+        var response = await client.PostAsJsonAsync("/api/chat",
+            new { question = "What is our SLA?" });
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task ChatApi_ConfiguredChatKey_RejectsWrongKey()
+    {
+        var client = _factory.WithWebHostBuilder(builder =>
+        {
+            builder.UseSetting("Security:ChatApiKey", "test-chat-key");
+        }).CreateClient();
+
+        using var request = new HttpRequestMessage(HttpMethod.Post, "/api/chat")
+        {
+            Content = JsonContent.Create(new { question = "What is our SLA?" })
+        };
+        request.Headers.Add("X-Chat-Key", "wrong-key");
+
+        var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task ChatApi_ConfiguredChatKey_AcceptsCorrectKey()
+    {
+        var client = _factory.WithWebHostBuilder(builder =>
+        {
+            builder.UseSetting("Security:ChatApiKey", "test-chat-key");
+        }).CreateClient();
+
+        using var request = new HttpRequestMessage(HttpMethod.Post, "/api/chat")
+        {
+            Content = JsonContent.Create(new { question = "What is our SLA?" })
+        };
+        request.Headers.Add("X-Chat-Key", "test-chat-key");
+
+        var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task ChatApi_RequireChatKeyWithoutConfiguredKey_ReturnsServiceUnavailable()
+    {
+        var client = _factory.WithWebHostBuilder(builder =>
+        {
+            builder.UseSetting("Security:RequireChatApiKey", "true");
+            builder.UseSetting("Security:ChatApiKey", "");
+        }).CreateClient();
+
+        var response = await client.PostAsJsonAsync("/api/chat",
+            new { question = "What is our SLA?" });
+
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
+    }
+
     // --- Prompt Injection Logging (still returns 200 but input is sanitized) ---
 
     [Fact]
