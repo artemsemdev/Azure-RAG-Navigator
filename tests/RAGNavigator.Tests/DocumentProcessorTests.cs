@@ -58,6 +58,44 @@ public class DocumentProcessorTests : IDisposable
     }
 
     [Fact]
+    public async Task IngestDocumentsAsync_RecreatesIndexAfterClearingBeforeUpload()
+    {
+        // Arrange
+        await File.WriteAllTextAsync(Path.Combine(_tempDir, "doc.md"), "# Title\n\n## Section\n\nContent here.");
+
+        _chunker.Chunk(Arg.Any<string>(), "doc.md", Arg.Any<string>())
+            .Returns(new List<DocumentChunk> { MakeChunk("doc.md", "Section", "Content here.", 0) });
+        _embeddingService.GenerateEmbeddingsAsync(Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
+            .Returns(new List<ReadOnlyMemory<float>> { FakeEmbedding });
+
+        var callOrder = new List<string>();
+        _indexService.DeleteAllDocumentsAsync(Arg.Any<CancellationToken>())
+            .Returns(_ =>
+            {
+                callOrder.Add("delete");
+                return Task.CompletedTask;
+            });
+        _indexService.CreateOrUpdateIndexAsync(Arg.Any<CancellationToken>())
+            .Returns(_ =>
+            {
+                callOrder.Add("create");
+                return Task.CompletedTask;
+            });
+        _indexService.UploadChunksAsync(Arg.Any<IReadOnlyList<DocumentChunk>>(), Arg.Any<CancellationToken>())
+            .Returns(_ =>
+            {
+                callOrder.Add("upload");
+                return Task.CompletedTask;
+            });
+
+        // Act
+        await _processor.IngestDocumentsAsync([_tempDir]);
+
+        // Assert
+        Assert.Equal(["delete", "create", "upload"], callOrder);
+    }
+
+    [Fact]
     public async Task IngestDocumentsAsync_MultipleFiles_ProcessesAll()
     {
         // Arrange

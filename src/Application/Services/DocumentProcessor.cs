@@ -58,11 +58,11 @@ public sealed class DocumentProcessor
         _logger.LogInformation("Found {FileCount} files to process across {FolderCount} folders",
             files.Count, folderPaths.Count);
 
-        // Ensure the search index exists
-        await _indexService.CreateOrUpdateIndexAsync(cancellationToken);
-
-        // Clear existing documents before re-indexing
+        // Clear existing documents before re-indexing, then ensure the index
+        // exists before upload. The current infrastructure implementation clears
+        // by deleting the index, so create/update must happen after clearing.
         await _indexService.DeleteAllDocumentsAsync(cancellationToken);
+        await _indexService.CreateOrUpdateIndexAsync(cancellationToken);
 
         var allChunks = new List<DocumentChunk>();
 
