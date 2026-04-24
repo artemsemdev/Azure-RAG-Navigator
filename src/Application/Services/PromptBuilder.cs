@@ -56,7 +56,7 @@ public static partial class PromptBuilder
         sb.AppendLine();
         sb.AppendLine("## Question");
         sb.AppendLine("<user_question>");
-        sb.AppendLine(question);
+        sb.AppendLine(EscapePromptText(question));
         sb.AppendLine("</user_question>");
         sb.AppendLine();
         sb.AppendLine("Answer the question based only on the context above. Cite your sources.");
@@ -118,4 +118,10 @@ public static partial class PromptBuilder
 
     private static string Truncate(string value, int maxLength) =>
         value.Length <= maxLength ? value : string.Concat(value.AsSpan(0, maxLength), "...");
+
+    private static string EscapePromptText(string value) =>
+        value
+            .Replace("&", "&amp;", StringComparison.Ordinal)
+            .Replace("<", "&lt;", StringComparison.Ordinal)
+            .Replace(">", "&gt;", StringComparison.Ordinal);
 }

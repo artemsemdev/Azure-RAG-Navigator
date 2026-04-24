@@ -163,7 +163,7 @@ public class EdgeCaseTests
     }
 
     [Fact]
-    public void BuildUserPrompt_SpecialCharactersInQuestion_PreservedExactly()
+    public void BuildUserPrompt_SpecialCharactersInQuestion_EscapesPromptDelimiters()
     {
         var question = "What about <tags>, \"quotes\", & symbols: 你好 🚀?";
         var results = new List<RetrievalResult>
@@ -173,8 +173,9 @@ public class EdgeCaseTests
 
         var prompt = PromptBuilder.BuildUserPrompt(question, results);
 
-        Assert.Contains("<tags>", prompt);
+        Assert.Contains("&lt;tags&gt;", prompt);
         Assert.Contains("\"quotes\"", prompt);
+        Assert.Contains("&amp; symbols", prompt);
         Assert.Contains("你好", prompt);
         Assert.Contains("🚀", prompt);
         Assert.Contains("<html>", prompt);

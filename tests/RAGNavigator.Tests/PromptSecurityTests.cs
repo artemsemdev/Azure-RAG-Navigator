@@ -43,12 +43,23 @@ public class PromptSecurityTests
         var openCount = CountOccurrences(prompt, "<user_question>");
         var closeCount = CountOccurrences(prompt, "</user_question>");
         Assert.Equal(1, openCount);
-        // The attacker's injected close tag is still there as text, so we see 2 closing tags,
-        // but the structural tag added by our code is the last one
-        Assert.True(closeCount >= 1);
+        Assert.Equal(1, closeCount);
 
-        // Verify the question text (including the injection attempt) is present as-is
-        Assert.Contains(injection, prompt);
+        // Verify the attempted delimiter break is escaped as text, not interpreted as markup.
+        Assert.DoesNotContain(injection, prompt);
+        Assert.Contains("&lt;/user_question&gt;", prompt);
+    }
+
+    [Fact]
+    public void BuildUserPrompt_EscapesXmlSensitiveQuestionCharacters()
+    {
+        var question = "Compare A < B && B > C";
+        var results = new List<RetrievalResult>();
+
+        var prompt = PromptBuilder.BuildUserPrompt(question, results);
+
+        Assert.Contains("A &lt; B &amp;&amp; B &gt; C", prompt);
+        Assert.DoesNotContain(question, prompt);
     }
 
     // --- System prompt includes security instructions ---
