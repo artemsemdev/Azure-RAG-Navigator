@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using NSubstitute;
@@ -186,6 +187,20 @@ public class WebSecurityTests : IClassFixture<WebSecurityTests.TestWebFactory>
 
         // Passes auth check — may return BadRequest if no doc folders, that's OK
         Assert.NotEqual(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task ReindexApi_ProductionWithoutAdminKey_ReturnsServiceUnavailable()
+    {
+        var client = _factory.WithWebHostBuilder(builder =>
+        {
+            builder.UseEnvironment("Production");
+            builder.UseSetting("Security:AdminApiKey", "");
+        }).CreateClient();
+
+        var response = await client.PostAsync("/api/index/reindex", null);
+
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
     }
 
     // --- Debug Mode Gating ---

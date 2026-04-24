@@ -131,7 +131,17 @@ app.MapPost("/api/index/reindex", async (
     CancellationToken cancellationToken) =>
 {
     // Admin key protection: reindex is a privileged operation
-    if (!string.IsNullOrEmpty(adminKey))
+    if (string.IsNullOrEmpty(adminKey))
+    {
+        if (!app.Environment.IsDevelopment())
+        {
+            logger.LogError("Reindex endpoint disabled because Security:AdminApiKey is not configured.");
+            return Results.Json(
+                new { error = "Reindex is not configured." },
+                statusCode: StatusCodes.Status503ServiceUnavailable);
+        }
+    }
+    else
     {
         var providedKey = httpContext.Request.Headers["X-Admin-Key"].FirstOrDefault();
         if (providedKey != adminKey)
