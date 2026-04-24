@@ -36,7 +36,7 @@ graph LR
 ### Steps
 
 1. **Restore:** `dotnet restore`
-2. **Dependency security:** fail on vulnerable NuGet packages and report deprecated packages for controlled upgrades.
+2. **Dependency security:** fail on vulnerable or deprecated NuGet packages.
 3. **Build:** `dotnet build --configuration Release --no-restore`
 4. **Test:** `dotnet test --no-build --configuration Release`
 5. **Analyze:** Run `dotnet format --verify-no-changes` for style enforcement.

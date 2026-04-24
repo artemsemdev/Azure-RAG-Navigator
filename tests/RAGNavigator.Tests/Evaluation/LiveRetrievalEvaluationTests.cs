@@ -5,7 +5,6 @@ using RAGNavigator.Application.Interfaces;
 using RAGNavigator.Application.Services;
 using RAGNavigator.Infrastructure;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace RAGNavigator.Tests.Evaluation;
 
