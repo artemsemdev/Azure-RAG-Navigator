@@ -47,6 +47,12 @@ variable "embedding_model_version" {
   default     = "1"
 }
 
+variable "embedding_dimensions" {
+  description = "Embedding vector dimensions; must match the application search index schema"
+  type        = number
+  default     = 1536
+}
+
 # --- AI Search ---
 
 variable "search_sku" {
@@ -67,4 +73,16 @@ variable "app_service_sku" {
   description = "App Service plan SKU (B1, S1, P1v3, etc.)"
   type        = string
   default     = "B1"
+}
+
+variable "admin_api_key_key_vault_reference" {
+  description = "Optional App Service Key Vault reference for ADMIN_API_KEY, e.g. @Microsoft.KeyVault(SecretUri=...)"
+  type        = string
+  default     = ""
+}
+
+variable "log_analytics_workspace_id" {
+  description = "Optional Log Analytics workspace resource ID for diagnostic settings"
+  type        = string
+  default     = null
 }

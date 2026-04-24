@@ -73,7 +73,16 @@ This role grants both index management and data operations. For stricter separat
 - Use **Search Index Data Reader** for query-only workloads.
 - Use **Search Service Contributor** for index schema management only.
 
-### Assignment Commands
+### Terraform Assignments
+
+The Terraform deployment assigns these roles to the App Service system-assigned managed identity:
+
+| Role | Scope |
+|------|-------|
+| **Cognitive Services OpenAI User** | Azure OpenAI account |
+| **Search Index Data Contributor** | Azure AI Search service |
+
+### Manual Assignment Commands
 
 ```bash
 # Assign roles to a managed identity

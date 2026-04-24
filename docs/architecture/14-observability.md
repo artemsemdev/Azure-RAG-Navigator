@@ -51,6 +51,8 @@ This enables automatic collection of:
 - Exceptions
 - W3C distributed traces
 
+The Terraform deployment also supports platform diagnostic settings. When `log_analytics_workspace_id` is provided, Azure OpenAI, Azure AI Search, and App Service diagnostics are sent to the configured Log Analytics workspace.
+
 ## Metrics to Track
 
 ### Request Metrics
