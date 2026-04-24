@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using NSubstitute;
+using RAGNavigator.Application.Configuration;
 using RAGNavigator.Application.Interfaces;
 using RAGNavigator.Application.Models;
 using RAGNavigator.Application.Services;
@@ -19,7 +20,12 @@ public class RagOrchestratorTests
 
     public RagOrchestratorTests()
     {
-        _orchestrator = new RagOrchestrator(_embeddingService, _retrievalService, _chatService, _logger);
+        _orchestrator = new RagOrchestrator(
+            _embeddingService,
+            _retrievalService,
+            _chatService,
+            new RagOptions(),
+            _logger);
     }
 
     [Fact]
@@ -123,6 +129,44 @@ public class RagOrchestratorTests
         // Assert — only the relevant result should produce a citation
         Assert.Contains(response.Citations, c => c.FileName == "sla.md");
         Assert.DoesNotContain(response.Citations, c => c.FileName == "noise.md");
+    }
+
+    [Fact]
+    public async Task AskAsync_UsesConfiguredTopKAndRelevanceThreshold()
+    {
+        // Arrange
+        var question = "What is our SLA?";
+        var orchestrator = new RagOrchestrator(
+            _embeddingService,
+            _retrievalService,
+            _chatService,
+            new RagOptions { TopK = 8, MinimumRelevanceScore = 0.5 },
+            _logger);
+
+        var results = new List<RetrievalResult>
+        {
+            MakeResult("sla.md", "SLA", "99.9% uptime guarantee.", 0.80),
+            MakeResult("noise.md", "Random", "Unrelated content.", 0.49)
+        };
+
+        _embeddingService.GenerateEmbeddingAsync(question, Arg.Any<CancellationToken>())
+            .Returns(FakeEmbedding);
+        _retrievalService.SearchAsync(question, Arg.Any<ReadOnlyMemory<float>>(), 8, Arg.Any<CancellationToken>())
+            .Returns(results);
+        _chatService.GenerateAnswerAsync(Arg.Any<string>(), Arg.Is<string>(p => !p.Contains("Unrelated content.")), Arg.Any<CancellationToken>())
+            .Returns("Our SLA is 99.9% uptime [Source: sla.md].");
+
+        // Act
+        var response = await orchestrator.AskAsync(question);
+
+        // Assert
+        Assert.Contains(response.Citations, c => c.FileName == "sla.md");
+        Assert.DoesNotContain(response.Citations, c => c.FileName == "noise.md");
+        await _retrievalService.Received(1).SearchAsync(
+            question,
+            Arg.Any<ReadOnlyMemory<float>>(),
+            8,
+            Arg.Any<CancellationToken>());
     }
 
     [Fact]

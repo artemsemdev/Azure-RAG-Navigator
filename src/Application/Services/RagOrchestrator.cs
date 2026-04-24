@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using Microsoft.Extensions.Logging;
+using RAGNavigator.Application.Configuration;
 using RAGNavigator.Application.Interfaces;
 using RAGNavigator.Application.Models;
 
@@ -14,20 +15,20 @@ public sealed class RagOrchestrator
     private readonly IEmbeddingService _embeddingService;
     private readonly IRetrievalService _retrievalService;
     private readonly IChatCompletionService _chatService;
+    private readonly RagOptions _options;
     private readonly ILogger<RagOrchestrator> _logger;
-
-    private const int TopK = 5;
-    private const double MinimumRelevanceScore = 0.01;
 
     public RagOrchestrator(
         IEmbeddingService embeddingService,
         IRetrievalService retrievalService,
         IChatCompletionService chatService,
+        RagOptions options,
         ILogger<RagOrchestrator> logger)
     {
         _embeddingService = embeddingService;
         _retrievalService = retrievalService;
         _chatService = chatService;
+        _options = options;
         _logger = logger;
     }
 
@@ -45,11 +46,11 @@ public sealed class RagOrchestrator
         var queryEmbedding = await _embeddingService.GenerateEmbeddingAsync(question, cancellationToken);
 
         // Step 2: Hybrid retrieval (keyword + vector) with semantic re-ranking
-        var results = await _retrievalService.SearchAsync(question, queryEmbedding, TopK, cancellationToken);
+        var results = await _retrievalService.SearchAsync(question, queryEmbedding, _options.TopK, cancellationToken);
 
         // Filter out low-relevance results
         var relevantResults = results
-            .Where(r => r.Score >= MinimumRelevanceScore)
+            .Where(r => r.Score >= _options.MinimumRelevanceScore)
             .ToList();
 
         _logger.LogInformation("Retrieved {Count} relevant chunks (of {Total} total)",
