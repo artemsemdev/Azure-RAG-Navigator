@@ -21,6 +21,23 @@ jobs:
       - name: Restore dependencies
         run: dotnet restore RAGNavigator.sln
 
+      - name: Check vulnerable packages
+        run: |
+          dotnet list RAGNavigator.sln package --vulnerable --include-transitive > vulnerable-packages.txt
+          cat vulnerable-packages.txt
+          if grep -q "has the following vulnerable packages" vulnerable-packages.txt; then
+            echo "Vulnerable NuGet packages detected."
+            exit 1
+          fi
+
+      - name: Check deprecated packages
+        run: |
+          dotnet list RAGNavigator.sln package --deprecated > deprecated-packages.txt
+          cat deprecated-packages.txt
+          if grep -q "has the following deprecated packages" deprecated-packages.txt; then
+            echo "::warning::Deprecated NuGet packages detected. Review and upgrade in a controlled dependency update."
+          fi
+
       - name: Check formatting
         run: dotnet format RAGNavigator.sln --verify-no-changes --verbosity diagnostic
 

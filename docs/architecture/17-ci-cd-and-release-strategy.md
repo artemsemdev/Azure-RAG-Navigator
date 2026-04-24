@@ -36,11 +36,12 @@ graph LR
 ### Steps
 
 1. **Restore:** `dotnet restore`
-2. **Build:** `dotnet build --configuration Release --no-restore`
-3. **Test:** `dotnet test --no-build --configuration Release`
-4. **Analyze:** Run `dotnet format --verify-no-changes` for style enforcement.
-5. **Containerize:** Build Docker image from `src/Web`.
-6. **Push:** Push image to Azure Container Registry (ACR).
+2. **Dependency security:** fail on vulnerable NuGet packages and report deprecated packages for controlled upgrades.
+3. **Build:** `dotnet build --configuration Release --no-restore`
+4. **Test:** `dotnet test --no-build --configuration Release`
+5. **Analyze:** Run `dotnet format --verify-no-changes` for style enforcement.
+6. **Containerize:** Build Docker image from `src/Web`.
+7. **Push:** Push image to Azure Container Registry (ACR).
 
 ### Dockerfile Concept
 
