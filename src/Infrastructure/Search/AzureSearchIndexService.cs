@@ -154,6 +154,14 @@ public sealed class AzureSearchIndexService : ISearchIndexService
 
     private static SearchIndexDocument MapToIndexDocument(DocumentChunk chunk)
     {
+        var embedding = chunk.Embedding?.ToArray();
+        if (embedding is not null && embedding.Length != SearchIndexDocument.ContentVectorDimensions)
+        {
+            throw new InvalidOperationException(
+                $"Chunk '{chunk.ChunkId}' has embedding dimension {embedding.Length}, " +
+                $"but the search index expects {SearchIndexDocument.ContentVectorDimensions}.");
+        }
+
         return new SearchIndexDocument
         {
             ChunkId = chunk.ChunkId,
@@ -163,7 +171,7 @@ public sealed class AzureSearchIndexService : ISearchIndexService
             Section = chunk.Section,
             ChunkIndex = chunk.ChunkIndex,
             Content = chunk.Content,
-            ContentVector = chunk.Embedding?.ToArray()
+            ContentVector = embedding
         };
     }
 }

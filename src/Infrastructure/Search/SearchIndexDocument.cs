@@ -9,6 +9,8 @@ namespace RAGNavigator.Infrastructure.Search;
 /// </summary>
 public sealed class SearchIndexDocument
 {
+    public const int ContentVectorDimensions = 1536;
+
     [SimpleField(IsKey = true, IsFilterable = true)]
     public string ChunkId { get; set; } = string.Empty;
 
@@ -35,7 +37,7 @@ public sealed class SearchIndexDocument
     /// The vector field enables semantic similarity search alongside keyword search.
     /// </summary>
     [VectorSearchField(
-        VectorSearchDimensions = 1536,
+        VectorSearchDimensions = ContentVectorDimensions,
         VectorSearchProfileName = "vector-profile")]
     public IReadOnlyList<float>? ContentVector { get; set; }
 }

@@ -16,6 +16,13 @@ public sealed class AzureOpenAIOptions
     public string EmbeddingDeployment { get; set; } = string.Empty;
 
     /// <summary>
+    /// Must match the Azure AI Search vector field dimensions.
+    /// text-embedding-ada-002 and text-embedding-3-small use 1536 dimensions.
+    /// </summary>
+    [Range(1, 4096)]
+    public int EmbeddingDimensions { get; set; } = 1536;
+
+    /// <summary>
     /// Optional API key for local development. When empty, DefaultAzureCredential is used.
     /// In production, prefer managed identity — no key needed.
     /// </summary>

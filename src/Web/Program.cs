@@ -242,6 +242,7 @@ static void MapEnvironmentVariables(ConfigurationManager config)
         ["AZURE_OPENAI_ENDPOINT"] = "AzureOpenAI:Endpoint",
         ["AZURE_OPENAI_CHAT_DEPLOYMENT"] = "AzureOpenAI:ChatDeployment",
         ["AZURE_OPENAI_EMBEDDING_DEPLOYMENT"] = "AzureOpenAI:EmbeddingDeployment",
+        ["AZURE_OPENAI_EMBEDDING_DIMENSIONS"] = "AzureOpenAI:EmbeddingDimensions",
         ["AZURE_OPENAI_API_KEY"] = "AzureOpenAI:ApiKey",
         ["AZURE_SEARCH_ENDPOINT"] = "AzureSearch:Endpoint",
         ["AZURE_SEARCH_INDEX_NAME"] = "AzureSearch:IndexName",

@@ -25,6 +25,10 @@ public static class DependencyInjection
         services.AddOptions<AzureOpenAIOptions>()
             .Bind(configuration.GetSection(AzureOpenAIOptions.SectionName))
             .ValidateDataAnnotations()
+            .Validate(
+                o => o.EmbeddingDimensions == SearchIndexDocument.ContentVectorDimensions,
+                $"AzureOpenAI:EmbeddingDimensions must be {SearchIndexDocument.ContentVectorDimensions} " +
+                "to match the Azure AI Search ContentVector field.")
             .ValidateOnStart();
 
         services.AddOptions<AzureSearchOptions>()

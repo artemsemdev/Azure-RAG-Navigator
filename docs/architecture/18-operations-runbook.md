@@ -121,6 +121,7 @@ In Development, the admin key may be omitted if `ADMIN_API_KEY` is not configure
 | OpenAI Endpoint | `AZURE_OPENAI_ENDPOINT` | `https://my-openai.openai.azure.com/` |
 | Chat Deployment | `AZURE_OPENAI_CHAT_DEPLOYMENT` | `gpt-4o` |
 | Embedding Deployment | `AZURE_OPENAI_EMBEDDING_DEPLOYMENT` | `text-embedding-ada-002` |
+| Embedding Dimensions | `AZURE_OPENAI_EMBEDDING_DIMENSIONS` | `1536` |
 | OpenAI API Key | `AZURE_OPENAI_API_KEY` | (32-char key, or empty for managed identity) |
 | Search Endpoint | `AZURE_SEARCH_ENDPOINT` | `https://my-search.search.windows.net` |
 | Search Index Name | `AZURE_SEARCH_INDEX_NAME` | `rag-navigator-index` |

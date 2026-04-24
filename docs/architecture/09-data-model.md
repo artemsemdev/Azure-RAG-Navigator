@@ -119,7 +119,7 @@ SearchIndexDocument
 ├── Section: string           # Searchable
 ├── ChunkIndex: int           # Filterable, Sortable
 ├── Content: string           # Searchable (en.lucene analyzer)
-└── ContentVector: float[]    # Vector field (1536 dimensions, HNSW, Cosine)
+└── ContentVector: float[]    # Vector field (1536 dimensions, HNSW, Cosine; validated at startup/upload)
 ```
 
 ## Model Ownership

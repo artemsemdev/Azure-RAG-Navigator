@@ -196,6 +196,7 @@ dotnet test
 export AZURE_OPENAI_ENDPOINT="https://your-openai.openai.azure.com/"
 export AZURE_OPENAI_CHAT_DEPLOYMENT="gpt-4o"
 export AZURE_OPENAI_EMBEDDING_DEPLOYMENT="text-embedding-ada-002"
+export AZURE_OPENAI_EMBEDDING_DIMENSIONS="1536"
 export AZURE_OPENAI_API_KEY="your-key"          # or use az login
 
 export AZURE_SEARCH_ENDPOINT="https://your-search.search.windows.net"
