@@ -232,11 +232,11 @@ Click **Reindex** in the sidebar to index all documents, then ask questions.
 
 | Control | Implementation |
 |---------|---------------|
-| **Prompt injection** | `InputSanitizer` (13 pattern categories) + `<user_question>` XML delimiters + system prompt hardening + low temperature |
+| **Prompt injection** | `InputSanitizer` (13 pattern categories) + escaped `<user_question>` delimiters + system prompt hardening + low temperature |
 | **Rate limiting** | Per-IP fixed-window: 20 req/min on chat, 3 req/hour on reindex |
 | **Security headers** | CSP, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy, HSTS |
 | **CSRF protection** | Content-Type validation (JSON-only on POST endpoints) |
-| **Admin protection** | `X-Admin-Key` header required for reindex endpoint |
+| **Admin protection** | `X-Admin-Key` header required for reindex endpoint outside Development; fixed-time validation |
 | **Debug mode gating** | Disabled in production; system prompt stripped from debug output |
 | **Input sanitization** | Control character stripping, invisible Unicode removal, whitespace normalization |
 | **Error handling** | Generic error responses in production — no stack traces or Azure SDK details |
@@ -269,7 +269,7 @@ Heading-aware markdown splitting: split on `##`/`###` boundaries, sub-split larg
 BM25 keyword search + HNSW vector search, merged by Azure AI Search's Reciprocal Rank Fusion, then re-ranked by Azure AI Search's semantic ranker (L2). Keyword catches exact terms and acronyms; vector catches semantic similarity and paraphrasing; semantic ranking uses deep language understanding to promote the most relevant results. Extractive captions and reranker scores are available in the debug panel.
 
 ### Grounding
-The system prompt restricts answers to provided context only. Temperature is set to 0.1. The LLM is instructed to cite sources using `[Source: filename]` format, and to say "not enough information" when evidence is insufficient.
+The system prompt restricts answers to provided context only. Temperature is set to 0.1. The LLM is instructed to cite sources using `[Source: filename]` format. If retrieval produces no relevant context, the orchestrator returns a deterministic "not enough information" response without calling the LLM.
 
 ### Citations
 `PromptBuilder.ExtractCitations` parses `[Source: filename]` references from the LLM response and matches them to retrieved chunks for source file, section, and evidence snippets.

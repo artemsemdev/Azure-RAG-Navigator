@@ -37,7 +37,7 @@ The application does not add additional retry logic on top of the SDK defaults. 
 | Azure OpenAI unavailable | HTTP 500 returned, UI shows error | Retry with backoff, show cached answer if available |
 | Azure AI Search unavailable | HTTP 500 returned, UI shows error | Return "search unavailable" with suggestion to retry |
 | LLM returns empty content | Graceful fallback message | Same, plus alert to operations team |
-| No relevant search results | LLM says "not enough information" | Same, plus suggest alternative queries |
+| No relevant search results | Deterministic "not enough information" response without LLM call | Same, plus suggest alternative queries |
 | File read error during ingestion | Exception stops ingestion | Skip file, log error, continue with remaining files |
 
 ### Failure Handling: Indexing

@@ -11,12 +11,12 @@
 2. System generates an embedding vector for the query.
 3. System executes hybrid search (keyword + vector) against Azure AI Search.
 4. System retrieves the top-k most relevant document chunks.
-5. System builds a grounded prompt with the question and retrieved context.
+5. If relevant context remains after filtering, system builds a grounded prompt with the question and retrieved context.
 6. System sends the prompt to Azure OpenAI for answer generation.
 7. System parses citations from the LLM response.
 8. System returns the answer, citations, and source metadata.
 
-**Alternate Flow:** If the retrieved context is insufficient, the LLM responds with a clear "not enough information" message instead of hallucinating.
+**Alternate Flow:** If no relevant context remains after filtering, the orchestrator returns a deterministic "not enough information" response without calling the LLM.
 
 ### UC-2: Reindex Documents
 
@@ -105,9 +105,12 @@ Input: User question (string)
   │   └─ Results merged by Reciprocal Rank Fusion (RRF)
   │
   ├─ Filter results below minimum relevance threshold
+  ├─ If no relevant results remain:
+  │   └─ Return deterministic "not enough information" response
+  │
   ├─ Build grounded prompt:
   │   ├─ System: "Answer only from context, cite sources"
-  │   └─ User: Retrieved chunks + question
+  │   └─ User: Retrieved chunks + escaped question
   │
   ├─ Send to Azure OpenAI (temperature=0.1)
   ├─ Parse [Source: filename] citations from response
@@ -118,6 +121,6 @@ Input: User question (string)
 
 | Action | Endpoint | Method | Behavior |
 |--------|----------|--------|----------|
-| Reindex all documents | `/api/index/reindex` | POST | Scans folders, chunks, embeds, deletes index, uploads |
+| Reindex all documents | `/api/index/reindex` | POST | Requires admin key outside development; scans folders, chunks, embeds, deletes/recreates index, uploads |
 | List indexed documents | `/api/index/documents` | GET | Returns unique documents with chunk counts |
 | Ask a question | `/api/chat` | POST | Full RAG pipeline, returns answer + citations |

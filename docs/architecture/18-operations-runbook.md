@@ -10,7 +10,8 @@
 
 ### Via the API
 ```bash
-curl -X POST http://localhost:5000/api/index/reindex
+curl -X POST http://localhost:5000/api/index/reindex \
+  -H "X-Admin-Key: $ADMIN_API_KEY"
 ```
 
 Expected response:
@@ -28,6 +29,8 @@ dotnet run
 # In another terminal:
 curl -X POST http://localhost:5000/api/index/reindex
 ```
+
+In Development, the admin key may be omitted if `ADMIN_API_KEY` is not configured. In non-development environments, `ADMIN_API_KEY` must be configured or reindexing returns HTTP 503.
 
 ## How to Diagnose Failed Ingestion
 
@@ -122,6 +125,9 @@ curl -X POST http://localhost:5000/api/index/reindex
 | Search Endpoint | `AZURE_SEARCH_ENDPOINT` | `https://my-search.search.windows.net` |
 | Search Index Name | `AZURE_SEARCH_INDEX_NAME` | `rag-navigator-index` |
 | Search API Key | `AZURE_SEARCH_API_KEY` | (52-char key, or empty for managed identity) |
+| Reindex Admin Key | `ADMIN_API_KEY` | Required outside Development |
+| Retrieval Top K | `RAG_TOP_K` | `5` |
+| Minimum Relevance Score | `RAG_MINIMUM_RELEVANCE_SCORE` | `0.01` |
 
 ### Startup Validation
 

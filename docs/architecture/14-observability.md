@@ -128,7 +128,8 @@ The `CancellationToken` passed through all async methods already supports reques
   "level": "Information",
   "message": "Query completed",
   "properties": {
-    "question": "How do we handle failovers?",
+    "questionLength": 28,
+    "questionFingerprint": "8b6d2a9c4f10",
     "embeddingDurationMs": 120,
     "searchDurationMs": 85,
     "llmDurationMs": 2400,
@@ -161,7 +162,7 @@ The `CancellationToken` passed through all async methods already supports reques
 ## What Is Not Logged
 
 Following security best practices:
-- User questions are logged at `Debug` level only (not in production).
+- User questions are not logged raw in standard application logs; query processing logs use length and a short SHA-256 fingerprint.
 - Full LLM prompts are available only in debug mode, not in standard logs.
 - API keys and credentials are never logged.
 - Document content beyond metadata is not logged.

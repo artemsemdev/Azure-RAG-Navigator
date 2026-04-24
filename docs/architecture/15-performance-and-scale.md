@@ -86,7 +86,7 @@ The application is stateless — all state is in Azure AI Search. Horizontal sca
 
 ## Top-K Tuning
 
-The `topK` parameter (currently 5) controls how many chunks are included in the prompt:
+The `topK` parameter defaults to 5 and controls how many chunks are included in the prompt. It is configured through `Rag:TopK` or `RAG_TOP_K`:
 
 | topK | Pros | Cons |
 |------|------|------|
@@ -95,7 +95,7 @@ The `topK` parameter (currently 5) controls how many chunks are included in the 
 | 8 | Comprehensive context | Higher cost, longer responses |
 | 10+ | Maximum coverage | Prompt too long, diminishing returns, higher cost |
 
-**Recommendation:** 5 is the right default for a corpus of this size. For larger corpora, consider adaptive top-k based on score distribution — include chunks until the relevance score drops below a threshold.
+**Recommendation:** 5 is the right default for a corpus of this size. Tune it per environment with `RAG_TOP_K` and pair it with `RAG_MINIMUM_RELEVANCE_SCORE` to prevent low-signal chunks from reaching the LLM. For larger corpora, consider adaptive top-k based on score distribution.
 
 ## Indexing Performance
 
