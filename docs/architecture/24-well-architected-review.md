@@ -22,9 +22,9 @@ This review evaluates RAG Navigator against the five pillars of the Azure Well-A
 **Weaknesses:**
 - No health endpoints for orchestrators to probe.
 - No circuit breaker — a downstream outage causes repeated failures.
-- Ingestion is all-or-nothing; one file failure stops everything.
+- File read/chunk failures are isolated, but embedding and upload failures still stop the reindex.
 
-**Next improvement:** Add `/health` and `/health/ready` endpoints. Implement per-file error handling in ingestion.
+**Next improvement:** Add `/health` and `/health/ready` endpoints. Add retry/backoff around embedding and upload.
 
 ---
 

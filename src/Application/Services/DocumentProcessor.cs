@@ -97,16 +97,28 @@ public sealed class DocumentProcessor
                 cancellationToken.ThrowIfCancellationRequested();
 
                 var fileName = Path.GetFileName(filePath);
-                var content = await File.ReadAllTextAsync(filePath, cancellationToken);
-                var title = ExtractTitle(content, fileName);
+                try
+                {
+                    var content = await File.ReadAllTextAsync(filePath, cancellationToken);
+                    var title = ExtractTitle(content, fileName);
 
-                _logger.LogInformation("Chunking {FileName} ({Length} chars)", fileName, content.Length);
+                    _logger.LogInformation("Chunking {FileName} ({Length} chars)", fileName, content.Length);
 
-                var chunks = _chunker.Chunk(content, fileName, title);
-                allChunks.AddRange(chunks);
-                filesProcessed++;
+                    var chunks = _chunker.Chunk(content, fileName, title);
+                    allChunks.AddRange(chunks);
+                    filesProcessed++;
 
-                _logger.LogInformation("Produced {ChunkCount} chunks from {FileName}", chunks.Count, fileName);
+                    _logger.LogInformation("Produced {ChunkCount} chunks from {FileName}", chunks.Count, fileName);
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    filesFailed++;
+                    _logger.LogError(ex, "Failed to process {FileName}; skipping file", fileName);
+                }
             }
 
             // Generate embeddings in batches
@@ -136,8 +148,15 @@ public sealed class DocumentProcessor
             }
 
             // Upload to search index
-            _logger.LogInformation("Uploading {ChunkCount} chunks to search index", allChunks.Count);
-            await _indexService.UploadChunksAsync(allChunks, cancellationToken);
+            if (allChunks.Count > 0)
+            {
+                _logger.LogInformation("Uploading {ChunkCount} chunks to search index", allChunks.Count);
+                await _indexService.UploadChunksAsync(allChunks, cancellationToken);
+            }
+            else
+            {
+                _logger.LogWarning("No chunks produced from {FileCount} discovered files", files.Count);
+            }
 
             _logger.LogInformation("Ingestion complete. {ChunkCount} chunks indexed from {FileCount} files",
                 allChunks.Count, files.Count);

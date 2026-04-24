@@ -128,6 +128,62 @@ public class DocumentProcessorTests : IDisposable
     }
 
     [Fact]
+    public async Task IngestDocumentsAsync_FileChunkingFailure_SkipsFileAndContinues()
+    {
+        // Arrange
+        await File.WriteAllTextAsync(Path.Combine(_tempDir, "bad.md"), "# Bad\n\nBroken content.");
+        await File.WriteAllTextAsync(Path.Combine(_tempDir, "good.md"), "# Good\n\nUseful content.");
+
+        _chunker.Chunk(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>())
+            .Returns(ci =>
+            {
+                var fileName = (string)ci[1];
+                if (fileName == "bad.md")
+                    throw new InvalidDataException("Cannot chunk file.");
+
+                return new List<DocumentChunk> { MakeChunk(fileName, "Section", "Content", 0) };
+            });
+
+        _embeddingService.GenerateEmbeddingsAsync(Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
+            .Returns(new List<ReadOnlyMemory<float>> { FakeEmbedding });
+
+        // Act
+        var summary = await _processor.IngestDocumentsAsync([_tempDir]);
+
+        // Assert
+        Assert.Equal(2, summary.FilesFound);
+        Assert.Equal(1, summary.FilesProcessed);
+        Assert.Equal(1, summary.FilesFailed);
+        Assert.Equal(1, summary.ChunksIndexed);
+        await _indexService.Received(1).UploadChunksAsync(
+            Arg.Is<IReadOnlyList<DocumentChunk>>(chunks => chunks.Count == 1 && chunks[0].FileName == "good.md"),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task IngestDocumentsAsync_AllFilesFail_SkipsEmptyUpload()
+    {
+        // Arrange
+        await File.WriteAllTextAsync(Path.Combine(_tempDir, "bad.md"), "# Bad\n\nBroken content.");
+
+        _chunker.Chunk(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>())
+            .Returns(_ => throw new InvalidDataException("Cannot chunk file."));
+
+        // Act
+        var summary = await _processor.IngestDocumentsAsync([_tempDir]);
+
+        // Assert
+        Assert.Equal(1, summary.FilesFound);
+        Assert.Equal(0, summary.FilesProcessed);
+        Assert.Equal(1, summary.FilesFailed);
+        Assert.Equal(0, summary.ChunksIndexed);
+        await _embeddingService.DidNotReceive().GenerateEmbeddingsAsync(
+            Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>());
+        await _indexService.DidNotReceive().UploadChunksAsync(
+            Arg.Any<IReadOnlyList<DocumentChunk>>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task IngestDocumentsAsync_EmptyFolder_ReturnsZero()
     {
         // Arrange — empty temp directory, no files

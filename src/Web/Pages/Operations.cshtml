@@ -71,8 +71,8 @@ curl -X POST http://localhost:5000/api/index/reindex</code></pre>
                     <div class="waf-header reliability">Reliability</div>
                     <div class="waf-score">2/5</div>
                     <p><strong>Strength:</strong> Rebuildable index from source files; SDK built-in retries.</p>
-                    <p><strong>Gap:</strong> No health checks, no circuit breakers, all-or-nothing ingestion.</p>
-                    <p><strong>Next:</strong> Add <code>/health</code> endpoints and per-file error handling.</p>
+                    <p><strong>Gap:</strong> No health checks, no circuit breakers, embedding/upload failures still stop reindex.</p>
+                    <p><strong>Next:</strong> Add <code>/health</code> endpoints and retry/backoff policies.</p>
                 </div>
                 <div class="waf-card">
                     <div class="waf-header security">Security</div>
