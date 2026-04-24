@@ -30,7 +30,7 @@ public sealed class DocumentProcessor
         _logger = logger;
     }
 
-    public async Task<int> IngestDocumentsAsync(
+    public async Task<IngestionSummary> IngestDocumentsAsync(
         IReadOnlyList<string> folderPaths, CancellationToken cancellationToken = default)
     {
         var files = new List<string>();
@@ -52,7 +52,14 @@ public sealed class DocumentProcessor
         if (files.Count == 0)
         {
             _logger.LogWarning("No .md or .txt files found in any configured folder");
-            return 0;
+            return new IngestionSummary
+            {
+                FoldersRequested = folderPaths.Count,
+                FilesFound = 0,
+                FilesProcessed = 0,
+                ChunksIndexed = 0,
+                FilesFailed = 0
+            };
         }
 
         _logger.LogInformation("Found {FileCount} files to process across {FolderCount} folders",
@@ -66,6 +73,9 @@ public sealed class DocumentProcessor
 
         var allChunks = new List<DocumentChunk>();
 
+        var filesProcessed = 0;
+        var filesFailed = 0;
+
         foreach (var filePath in files)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -78,6 +88,7 @@ public sealed class DocumentProcessor
 
             var chunks = _chunker.Chunk(content, fileName, title);
             allChunks.AddRange(chunks);
+            filesProcessed++;
 
             _logger.LogInformation("Produced {ChunkCount} chunks from {FileName}", chunks.Count, fileName);
         }
@@ -115,7 +126,14 @@ public sealed class DocumentProcessor
         _logger.LogInformation("Ingestion complete. {ChunkCount} chunks indexed from {FileCount} files",
             allChunks.Count, files.Count);
 
-        return allChunks.Count;
+        return new IngestionSummary
+        {
+            FoldersRequested = folderPaths.Count,
+            FilesFound = files.Count,
+            FilesProcessed = filesProcessed,
+            ChunksIndexed = allChunks.Count,
+            FilesFailed = filesFailed
+        };
     }
 
     private static string ExtractTitle(string content, string fileName)

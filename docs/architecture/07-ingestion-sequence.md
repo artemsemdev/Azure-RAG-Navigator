@@ -61,8 +61,8 @@ sequenceDiagram
     end
     IS-->>DP: Upload complete
 
-    DP-->>API: chunkCount
-    API-->>UI: {message, chunksIndexed}
+    DP-->>API: IngestionSummary
+    API-->>UI: {message, chunksIndexed, filesFound, filesProcessed, filesFailed}
     UI->>UI: Refresh document list
     UI-->>User: "Indexing complete (N chunks)"
 ```

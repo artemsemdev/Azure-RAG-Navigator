@@ -80,6 +80,19 @@ RetrievedChunkDebug
 └── ContentPreview: string    # First 300 chars of chunk content
 ```
 
+### IngestionSummary
+
+Operational summary returned after a reindex run.
+
+```
+IngestionSummary
+├── FoldersRequested: int
+├── FilesFound: int
+├── FilesProcessed: int
+├── ChunksIndexed: int
+└── FilesFailed: int
+```
+
 ### SourceDocument
 
 Aggregated view of a document in the index (for the sidebar document list).
@@ -128,7 +141,7 @@ SearchIndexDocument
 |-------|-------|---------|
 | `DocumentChunk` | Application | Core domain model, used everywhere |
 | `RetrievalResult` | Application | Query pipeline output |
-| `ChatResponse`, `Citation`, `DebugInfo` | Application | API response models |
+| `ChatResponse`, `Citation`, `DebugInfo`, `IngestionSummary` | Application | API response and operational summary models |
 | `SourceDocument` | Application | Document list view model |
 | `SearchIndexDocument` | Infrastructure | Azure AI Search persistence mapping |
 

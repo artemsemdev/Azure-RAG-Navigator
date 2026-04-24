@@ -189,9 +189,16 @@ app.MapPost("/api/index/reindex", async (
     if (folders.Count == 0)
         return Results.BadRequest(new { error = "No document folders found. Set SampleDataPath or run from the repo directory." });
 
-    var chunkCount = await processor.IngestDocumentsAsync(folders, cancellationToken);
+    var summary = await processor.IngestDocumentsAsync(folders, cancellationToken);
 
-    return Results.Ok(new { message = "Indexing complete.", chunksIndexed = chunkCount });
+    return Results.Ok(new
+    {
+        message = "Indexing complete.",
+        chunksIndexed = summary.ChunksIndexed,
+        filesFound = summary.FilesFound,
+        filesProcessed = summary.FilesProcessed,
+        filesFailed = summary.FilesFailed
+    });
 })
 .RequireRateLimiting("reindex");
 

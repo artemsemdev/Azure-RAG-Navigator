@@ -46,10 +46,13 @@ public class DocumentProcessorTests : IDisposable
             .Returns(new List<ReadOnlyMemory<float>> { FakeEmbedding });
 
         // Act
-        var count = await _processor.IngestDocumentsAsync([_tempDir]);
+        var summary = await _processor.IngestDocumentsAsync([_tempDir]);
 
         // Assert
-        Assert.Equal(1, count);
+        Assert.Equal(1, summary.ChunksIndexed);
+        Assert.Equal(1, summary.FilesFound);
+        Assert.Equal(1, summary.FilesProcessed);
+        Assert.Equal(0, summary.FilesFailed);
         await _indexService.Received(1).CreateOrUpdateIndexAsync(Arg.Any<CancellationToken>());
         await _indexService.Received(1).DeleteAllDocumentsAsync(Arg.Any<CancellationToken>());
         await _indexService.Received(1).UploadChunksAsync(
@@ -117,10 +120,11 @@ public class DocumentProcessorTests : IDisposable
             });
 
         // Act
-        var count = await _processor.IngestDocumentsAsync([_tempDir]);
+        var summary = await _processor.IngestDocumentsAsync([_tempDir]);
 
         // Assert — should find all 3 files (.md and .txt)
-        Assert.Equal(3, count);
+        Assert.Equal(3, summary.ChunksIndexed);
+        Assert.Equal(3, summary.FilesProcessed);
     }
 
     [Fact]
@@ -129,10 +133,11 @@ public class DocumentProcessorTests : IDisposable
         // Arrange — empty temp directory, no files
 
         // Act
-        var count = await _processor.IngestDocumentsAsync([_tempDir]);
+        var summary = await _processor.IngestDocumentsAsync([_tempDir]);
 
         // Assert
-        Assert.Equal(0, count);
+        Assert.Equal(0, summary.ChunksIndexed);
+        Assert.Equal(0, summary.FilesFound);
         await _indexService.DidNotReceive().CreateOrUpdateIndexAsync(Arg.Any<CancellationToken>());
     }
 
@@ -143,10 +148,11 @@ public class DocumentProcessorTests : IDisposable
         var missing = Path.Combine(_tempDir, "does-not-exist");
 
         // Act
-        var count = await _processor.IngestDocumentsAsync([missing]);
+        var summary = await _processor.IngestDocumentsAsync([missing]);
 
         // Assert
-        Assert.Equal(0, count);
+        Assert.Equal(0, summary.ChunksIndexed);
+        Assert.Equal(1, summary.FoldersRequested);
     }
 
     [Fact]
@@ -170,10 +176,10 @@ public class DocumentProcessorTests : IDisposable
             });
 
         // Act
-        var count = await _processor.IngestDocumentsAsync([_tempDir]);
+        var summary = await _processor.IngestDocumentsAsync([_tempDir]);
 
         // Assert — 20 chunks total, should be 2 batches (16 + 4)
-        Assert.Equal(20, count);
+        Assert.Equal(20, summary.ChunksIndexed);
         await _embeddingService.Received(2).GenerateEmbeddingsAsync(
             Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>());
     }
@@ -254,10 +260,10 @@ public class DocumentProcessorTests : IDisposable
             .Returns(new List<ReadOnlyMemory<float>> { FakeEmbedding });
 
         // Act — should not throw
-        var count = await _processor.IngestDocumentsAsync([_tempDir]);
+        var summary = await _processor.IngestDocumentsAsync([_tempDir]);
 
         // Assert
-        Assert.Equal(1, count);
+        Assert.Equal(1, summary.ChunksIndexed);
         _chunker.Received(1).Chunk(Arg.Is<string>(s => s.Contains("\ud83d\ude80")), "special.md", Arg.Any<string>());
     }
 
@@ -287,10 +293,11 @@ public class DocumentProcessorTests : IDisposable
                 });
 
             // Act
-            var count = await _processor.IngestDocumentsAsync([_tempDir, dir2]);
+            var summary = await _processor.IngestDocumentsAsync([_tempDir, dir2]);
 
             // Assert
-            Assert.Equal(2, count);
+            Assert.Equal(2, summary.ChunksIndexed);
+            Assert.Equal(2, summary.FoldersRequested);
         }
         finally
         {

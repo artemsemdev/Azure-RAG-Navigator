@@ -18,7 +18,10 @@ Expected response:
 ```json
 {
   "message": "Indexing complete.",
-  "chunksIndexed": 82
+  "chunksIndexed": 82,
+  "filesFound": 34,
+  "filesProcessed": 34,
+  "filesFailed": 0
 }
 ```
 
