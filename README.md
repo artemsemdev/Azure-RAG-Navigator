@@ -122,7 +122,7 @@ RAGNavigator/
 │   ├── modules/              # openai, search, app-service modules
 │   └── environments/         # Per-environment tfvars (dev, staging, prod)
 ├── sample-data/              # Engineering documents (ADRs, runbooks, postmortems)
-├── docs/architecture/        # 26 architecture documents (also indexed as corpus)
+├── docs/architecture/        # 27 architecture documents (also indexed as corpus)
 └── RAGNavigator.sln
 ```
 
@@ -155,6 +155,7 @@ The `docs/architecture/` folder contains a complete solution architecture packag
 | [20-23 ADRs](docs/architecture/20-adr-001-modular-monolith.md) | Four detailed architecture decision records |
 | [24 Well-Architected Review](docs/architecture/24-well-architected-review.md) | Azure WAF assessment across 5 pillars |
 | [25 Demo Walkthrough](docs/architecture/25-demo-walkthrough.md) | 5-minute interview demo script |
+| [26 RAG Evaluation](docs/architecture/26-rag-evaluation.md) | Golden questions and retrieval quality evaluation strategy |
 
 All architecture documents are indexed as part of the RAG corpus — the assistant can answer questions about its own design.
 
@@ -286,7 +287,7 @@ The system prompt restricts answers to provided context only. Temperature is set
 | `standard-api-design-guidelines.md` | Platform Standard |
 | `standard-observability.md` | Platform Standard |
 
-Plus 26 architecture documents in `docs/architecture/` covering solution design, security, reliability, cost, and operations.
+Plus 27 architecture documents in `docs/architecture/` covering solution design, security, reliability, cost, operations, and RAG evaluation.
 
 ## Limitations & Honest Trade-offs
 

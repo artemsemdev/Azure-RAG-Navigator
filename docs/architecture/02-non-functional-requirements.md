@@ -51,11 +51,11 @@ This document defines the non-functional requirements for RAG Navigator, disting
 | Architecture | Three-layer modular monolith (Application, Infrastructure, Web) |
 | Dependency injection | All services registered through interfaces |
 | Configuration | Strongly-typed options with startup validation |
-| Testing | Unit tests for core logic (chunking, prompt assembly) |
+| Testing | Unit tests for core logic plus retrieval evaluation harness for golden questions |
 | Code conventions | Consistent naming, async/await, cancellation tokens |
 | Documentation | Architecture docs, inline comments for non-obvious logic |
 
-**Design principle:** Every service boundary is defined by an interface in the Application layer. Infrastructure implementations can be replaced without touching business logic.
+**Design principle:** Every service boundary is defined by an interface in the Application layer. Infrastructure implementations can be replaced without touching business logic. Retrieval quality changes should be checked against the golden question evaluation harness before tuning chunking, top-k, or relevance thresholds.
 
 ## Observability
 

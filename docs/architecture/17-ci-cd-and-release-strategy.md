@@ -76,8 +76,8 @@ graph LR
 
 | Environment | Trigger | Validation |
 |-------------|---------|-----------|
-| **Dev** | Automatic on merge to main | Smoke tests: health check, basic query |
-| **Staging** | Automatic after dev passes | Integration tests: reindex, query, verify citations |
+| **Dev** | Automatic on merge to main | Smoke tests: health check, basic query, golden question catalog validation |
+| **Staging** | Automatic after dev passes | Integration tests: reindex, query, verify citations and retrieval source recall |
 | **Production** | Manual approval gate | Verified by staging results |
 
 ### Smoke Test (Dev)
