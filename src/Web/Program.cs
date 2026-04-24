@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Text;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.RateLimiting;
 using RAGNavigator.Application.Services;
@@ -144,7 +146,7 @@ app.MapPost("/api/index/reindex", async (
     else
     {
         var providedKey = httpContext.Request.Headers["X-Admin-Key"].FirstOrDefault();
-        if (providedKey != adminKey)
+        if (!IsAdminKeyValid(providedKey, adminKey))
         {
             logger.LogWarning(
                 "Unauthorized reindex attempt from {IP}",
@@ -210,6 +212,17 @@ static bool HasJsonContentType(HttpContext context)
     var contentType = context.Request.ContentType;
     return contentType is not null &&
            contentType.Contains("application/json", StringComparison.OrdinalIgnoreCase);
+}
+
+static bool IsAdminKeyValid(string? providedKey, string configuredKey)
+{
+    if (string.IsNullOrEmpty(providedKey) || string.IsNullOrEmpty(configuredKey))
+        return false;
+
+    var providedHash = SHA256.HashData(Encoding.UTF8.GetBytes(providedKey));
+    var configuredHash = SHA256.HashData(Encoding.UTF8.GetBytes(configuredKey));
+
+    return CryptographicOperations.FixedTimeEquals(providedHash, configuredHash);
 }
 
 static string StripSystemPrompt(string fullPrompt)
