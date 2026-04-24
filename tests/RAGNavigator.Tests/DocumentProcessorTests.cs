@@ -21,7 +21,7 @@ public class DocumentProcessorTests : IDisposable
     public DocumentProcessorTests()
     {
         _processor = new DocumentProcessor(_chunker, _embeddingService, _indexService, _logger);
-        _tempDir = Path.Combine(Path.GetTempPath(), $"rag-test-{Guid.NewGuid():N}");
+        _tempDir = Path.Join(Path.GetTempPath(), $"rag-test-{Guid.NewGuid():N}");
         Directory.CreateDirectory(_tempDir);
     }
 
@@ -35,7 +35,7 @@ public class DocumentProcessorTests : IDisposable
     public async Task IngestDocumentsAsync_FullPipeline_ChunksEmbeddsAndUploads()
     {
         // Arrange
-        await File.WriteAllTextAsync(Path.Combine(_tempDir, "doc.md"), "# Title\n\n## Section\n\nContent here.");
+        await File.WriteAllTextAsync(Path.Join(_tempDir, "doc.md"), "# Title\n\n## Section\n\nContent here.");
 
         var chunks = new List<DocumentChunk>
         {
@@ -64,7 +64,7 @@ public class DocumentProcessorTests : IDisposable
     public async Task IngestDocumentsAsync_RecreatesIndexAfterClearingBeforeUpload()
     {
         // Arrange
-        await File.WriteAllTextAsync(Path.Combine(_tempDir, "doc.md"), "# Title\n\n## Section\n\nContent here.");
+        await File.WriteAllTextAsync(Path.Join(_tempDir, "doc.md"), "# Title\n\n## Section\n\nContent here.");
 
         _chunker.Chunk(Arg.Any<string>(), "doc.md", Arg.Any<string>())
             .Returns(new List<DocumentChunk> { MakeChunk("doc.md", "Section", "Content here.", 0) });
@@ -102,9 +102,9 @@ public class DocumentProcessorTests : IDisposable
     public async Task IngestDocumentsAsync_MultipleFiles_ProcessesAll()
     {
         // Arrange
-        await File.WriteAllTextAsync(Path.Combine(_tempDir, "a.md"), "# Doc A\n\nContent A.");
-        await File.WriteAllTextAsync(Path.Combine(_tempDir, "b.md"), "# Doc B\n\nContent B.");
-        await File.WriteAllTextAsync(Path.Combine(_tempDir, "c.txt"), "Plain text content.");
+        await File.WriteAllTextAsync(Path.Join(_tempDir, "a.md"), "# Doc A\n\nContent A.");
+        await File.WriteAllTextAsync(Path.Join(_tempDir, "b.md"), "# Doc B\n\nContent B.");
+        await File.WriteAllTextAsync(Path.Join(_tempDir, "c.txt"), "Plain text content.");
 
         _chunker.Chunk(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>())
             .Returns(ci =>
@@ -131,8 +131,8 @@ public class DocumentProcessorTests : IDisposable
     public async Task IngestDocumentsAsync_FileChunkingFailure_SkipsFileAndContinues()
     {
         // Arrange
-        await File.WriteAllTextAsync(Path.Combine(_tempDir, "bad.md"), "# Bad\n\nBroken content.");
-        await File.WriteAllTextAsync(Path.Combine(_tempDir, "good.md"), "# Good\n\nUseful content.");
+        await File.WriteAllTextAsync(Path.Join(_tempDir, "bad.md"), "# Bad\n\nBroken content.");
+        await File.WriteAllTextAsync(Path.Join(_tempDir, "good.md"), "# Good\n\nUseful content.");
 
         _chunker.Chunk(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>())
             .Returns(ci =>
@@ -164,7 +164,7 @@ public class DocumentProcessorTests : IDisposable
     public async Task IngestDocumentsAsync_AllFilesFail_SkipsEmptyUpload()
     {
         // Arrange
-        await File.WriteAllTextAsync(Path.Combine(_tempDir, "bad.md"), "# Bad\n\nBroken content.");
+        await File.WriteAllTextAsync(Path.Join(_tempDir, "bad.md"), "# Bad\n\nBroken content.");
 
         _chunker.Chunk(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>())
             .Returns(_ => throw new InvalidDataException("Cannot chunk file."));
@@ -201,7 +201,7 @@ public class DocumentProcessorTests : IDisposable
     public async Task IngestDocumentsAsync_NonexistentFolder_ReturnsZero()
     {
         // Arrange
-        var missing = Path.Combine(_tempDir, "does-not-exist");
+        var missing = Path.Join(_tempDir, "does-not-exist");
 
         // Act
         var summary = await _processor.IngestDocumentsAsync([missing]);
@@ -216,7 +216,7 @@ public class DocumentProcessorTests : IDisposable
     {
         // Arrange — create 20 files so we get 20 chunks (exceeds batch size of 16)
         for (var i = 0; i < 20; i++)
-            await File.WriteAllTextAsync(Path.Combine(_tempDir, $"doc{i:D2}.md"), $"# Doc {i}\n\nContent {i}.");
+            await File.WriteAllTextAsync(Path.Join(_tempDir, $"doc{i:D2}.md"), $"# Doc {i}\n\nContent {i}.");
 
         _chunker.Chunk(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>())
             .Returns(ci =>
@@ -244,7 +244,7 @@ public class DocumentProcessorTests : IDisposable
     public async Task IngestDocumentsAsync_SetsEmbeddingsOnChunks()
     {
         // Arrange
-        await File.WriteAllTextAsync(Path.Combine(_tempDir, "embed.md"), "# Embed Test\n\nSome content.");
+        await File.WriteAllTextAsync(Path.Join(_tempDir, "embed.md"), "# Embed Test\n\nSome content.");
 
         var chunk = MakeChunk("embed.md", "Section", "Some content.", 0);
         _chunker.Chunk(Arg.Any<string>(), "embed.md", Arg.Any<string>())
@@ -266,7 +266,7 @@ public class DocumentProcessorTests : IDisposable
     public async Task IngestDocumentsAsync_EmbeddingCountMismatch_Throws()
     {
         // Arrange
-        await File.WriteAllTextAsync(Path.Combine(_tempDir, "bad.md"), "# Bad\n\nContent.");
+        await File.WriteAllTextAsync(Path.Join(_tempDir, "bad.md"), "# Bad\n\nContent.");
 
         _chunker.Chunk(Arg.Any<string>(), "bad.md", Arg.Any<string>())
             .Returns(new List<DocumentChunk> { MakeChunk("bad.md", "Section", "Content", 0) });
@@ -283,7 +283,7 @@ public class DocumentProcessorTests : IDisposable
     public async Task IngestDocumentsAsync_CancellationRequested_ThrowsOperationCanceled()
     {
         // Arrange
-        await File.WriteAllTextAsync(Path.Combine(_tempDir, "cancel.md"), "# Cancel\n\nContent.");
+        await File.WriteAllTextAsync(Path.Join(_tempDir, "cancel.md"), "# Cancel\n\nContent.");
         using var cts = new CancellationTokenSource();
         cts.Cancel(); // Cancel immediately
 
@@ -308,7 +308,7 @@ public class DocumentProcessorTests : IDisposable
                       "Backslash paths: C:\\Users\\test\\file.md\n" +
                       "Angle brackets: <script>alert('xss')</script>\n";
 
-        await File.WriteAllTextAsync(Path.Combine(_tempDir, "special.md"), content);
+        await File.WriteAllTextAsync(Path.Join(_tempDir, "special.md"), content);
 
         _chunker.Chunk(Arg.Any<string>(), "special.md", Arg.Any<string>())
             .Returns(new List<DocumentChunk> { MakeChunk("special.md", "Special Chars", content, 0) });
@@ -327,13 +327,13 @@ public class DocumentProcessorTests : IDisposable
     public async Task IngestDocumentsAsync_MultipleFolders_AggregatesFiles()
     {
         // Arrange — two separate folders
-        var dir2 = Path.Combine(Path.GetTempPath(), $"rag-test2-{Guid.NewGuid():N}");
+        var dir2 = Path.Join(Path.GetTempPath(), $"rag-test2-{Guid.NewGuid():N}");
         Directory.CreateDirectory(dir2);
 
         try
         {
-            await File.WriteAllTextAsync(Path.Combine(_tempDir, "a.md"), "# A\n\nContent A.");
-            await File.WriteAllTextAsync(Path.Combine(dir2, "b.md"), "# B\n\nContent B.");
+            await File.WriteAllTextAsync(Path.Join(_tempDir, "a.md"), "# A\n\nContent A.");
+            await File.WriteAllTextAsync(Path.Join(dir2, "b.md"), "# B\n\nContent B.");
 
             _chunker.Chunk(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>())
                 .Returns(ci =>

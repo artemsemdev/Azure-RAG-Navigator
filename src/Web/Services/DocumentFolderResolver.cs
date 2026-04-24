@@ -4,6 +4,8 @@ public sealed class DocumentFolderResolver
 {
     private readonly IConfiguration _configuration;
     private readonly ILogger<DocumentFolderResolver> _logger;
+    private static readonly StringComparison PathComparison =
+        OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
 
     public DocumentFolderResolver(
         IConfiguration configuration,
@@ -23,7 +25,7 @@ public sealed class DocumentFolderResolver
         {
             var resolvedPath = Path.GetFullPath(sampleDataPath);
 
-            if (repoRoot is not null && !resolvedPath.StartsWith(repoRoot, StringComparison.OrdinalIgnoreCase))
+            if (repoRoot is not null && !IsPathWithinDirectory(resolvedPath, repoRoot))
             {
                 _logger.LogWarning("SampleDataPath traversal blocked: {Path}", resolvedPath);
                 return DocumentFolderResolution.Failed("Invalid SampleDataPath.");
@@ -33,12 +35,12 @@ public sealed class DocumentFolderResolver
         }
         else if (repoRoot is not null)
         {
-            folders.Add(Path.Combine(repoRoot, "sample-data"));
+            folders.Add(Path.Join(repoRoot, "sample-data"));
         }
 
         if (repoRoot is not null)
         {
-            var archDocsPath = Path.Combine(repoRoot, "docs", "architecture");
+            var archDocsPath = Path.Join(repoRoot, "docs", "architecture");
             if (Directory.Exists(archDocsPath))
                 folders.Add(archDocsPath);
         }
@@ -53,12 +55,25 @@ public sealed class DocumentFolderResolver
         var dir = new DirectoryInfo(Directory.GetCurrentDirectory());
         while (dir is not null)
         {
-            if (File.Exists(Path.Combine(dir.FullName, "RAGNavigator.sln")))
+            if (File.Exists(Path.Join(dir.FullName, "RAGNavigator.sln")))
                 return dir.FullName;
             dir = dir.Parent;
         }
 
         return null;
+    }
+
+    private static bool IsPathWithinDirectory(string path, string directory)
+    {
+        var fullPath = Path.GetFullPath(path);
+        var fullDirectory = Path.GetFullPath(directory);
+        var relativePath = Path.GetRelativePath(fullDirectory, fullPath);
+
+        return relativePath == "." ||
+            (!relativePath.StartsWith(".." + Path.DirectorySeparatorChar, PathComparison) &&
+             !relativePath.StartsWith(".." + Path.AltDirectorySeparatorChar, PathComparison) &&
+             !string.Equals(relativePath, "..", PathComparison) &&
+             !Path.IsPathRooted(relativePath));
     }
 }
 

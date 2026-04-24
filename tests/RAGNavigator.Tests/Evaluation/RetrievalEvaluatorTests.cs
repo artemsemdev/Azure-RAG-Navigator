@@ -10,8 +10,8 @@ public class RetrievalEvaluatorTests
     {
         var repoRoot = FindRepoRoot();
         var corpusFiles = Directory
-            .EnumerateFiles(Path.Combine(repoRoot, "sample-data"), "*.*", SearchOption.AllDirectories)
-            .Concat(Directory.EnumerateFiles(Path.Combine(repoRoot, "docs", "architecture"), "*.*", SearchOption.AllDirectories))
+            .EnumerateFiles(Path.Join(repoRoot, "sample-data"), "*.*", SearchOption.AllDirectories)
+            .Concat(Directory.EnumerateFiles(Path.Join(repoRoot, "docs", "architecture"), "*.*", SearchOption.AllDirectories))
             .Select(Path.GetFileName)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
@@ -123,7 +123,7 @@ public class RetrievalEvaluatorTests
         var dir = new DirectoryInfo(Directory.GetCurrentDirectory());
         while (dir is not null)
         {
-            if (File.Exists(Path.Combine(dir.FullName, "RAGNavigator.sln")))
+            if (File.Exists(Path.Join(dir.FullName, "RAGNavigator.sln")))
                 return dir.FullName;
 
             dir = dir.Parent;
