@@ -50,6 +50,22 @@ public sealed class RagOrchestrator
         _logger.LogInformation("Retrieved {Count} relevant chunks (of {Total} total)",
             relevantResults.Count, results.Count);
 
+        if (relevantResults.Count == 0)
+        {
+            _logger.LogInformation("No relevant context found; returning deterministic insufficient-context response");
+
+            var emptyPrompt = includeDebugInfo
+                ? PromptBuilder.BuildUserPrompt(question, relevantResults)
+                : string.Empty;
+
+            return new ChatResponse
+            {
+                Answer = PromptBuilder.InsufficientContextAnswer,
+                Citations = [],
+                Debug = includeDebugInfo ? BuildDebugInfo(relevantResults, emptyPrompt) : null
+            };
+        }
+
         // Step 3: Build grounded prompt
         var userPrompt = PromptBuilder.BuildUserPrompt(question, relevantResults);
 

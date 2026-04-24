@@ -13,6 +13,10 @@ public static partial class PromptBuilder
 {
     [GeneratedRegex(@"\[Source:\s*([^\]]+)\]")]
     private static partial Regex SourceCitationPattern();
+
+    public const string InsufficientContextAnswer =
+        "I don't have enough information in the indexed documents to answer this question.";
+
     public const string SystemPrompt =
         """
         You are an Engineering Knowledge Assistant for a platform engineering team.

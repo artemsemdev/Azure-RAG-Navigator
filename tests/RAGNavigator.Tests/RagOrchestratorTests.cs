@@ -88,15 +88,15 @@ public class RagOrchestratorTests
             .Returns(FakeEmbedding);
         _retrievalService.SearchAsync(question, Arg.Any<ReadOnlyMemory<float>>(), 5, Arg.Any<CancellationToken>())
             .Returns(new List<RetrievalResult>());
-        _chatService.GenerateAnswerAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns("I don't have enough information in the indexed documents to answer this question.");
 
         // Act
         var response = await _orchestrator.AskAsync(question);
 
         // Assert
-        Assert.Contains("don't have enough information", response.Answer);
+        Assert.Equal(PromptBuilder.InsufficientContextAnswer, response.Answer);
         Assert.Empty(response.Citations);
+        await _chatService.DidNotReceive().GenerateAnswerAsync(
+            Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -126,6 +126,33 @@ public class RagOrchestratorTests
     }
 
     [Fact]
+    public async Task AskAsync_AllResultsBelowRelevanceThreshold_DoesNotCallChatService()
+    {
+        // Arrange
+        var question = "What is our SLA?";
+        var results = new List<RetrievalResult>
+        {
+            MakeResult("noise.md", "Random", "Unrelated content.", 0.005)
+        };
+
+        _embeddingService.GenerateEmbeddingAsync(question, Arg.Any<CancellationToken>())
+            .Returns(FakeEmbedding);
+        _retrievalService.SearchAsync(question, Arg.Any<ReadOnlyMemory<float>>(), 5, Arg.Any<CancellationToken>())
+            .Returns(results);
+
+        // Act
+        var response = await _orchestrator.AskAsync(question, includeDebugInfo: true);
+
+        // Assert
+        Assert.Equal(PromptBuilder.InsufficientContextAnswer, response.Answer);
+        Assert.Empty(response.Citations);
+        Assert.NotNull(response.Debug);
+        Assert.Empty(response.Debug.RetrievedChunks);
+        await _chatService.DidNotReceive().GenerateAnswerAsync(
+            Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task AskAsync_CallsServicesInCorrectOrder()
     {
         // Arrange
@@ -135,9 +162,16 @@ public class RagOrchestratorTests
         _embeddingService.GenerateEmbeddingAsync(question, Arg.Any<CancellationToken>())
             .Returns(ci => { callOrder.Add("embed"); return FakeEmbedding; });
         _retrievalService.SearchAsync(question, Arg.Any<ReadOnlyMemory<float>>(), 5, Arg.Any<CancellationToken>())
-            .Returns(ci => { callOrder.Add("retrieve"); return new List<RetrievalResult>(); });
+            .Returns(ci =>
+            {
+                callOrder.Add("retrieve");
+                return new List<RetrievalResult>
+                {
+                    MakeResult("backup.md", "Backups", "Daily snapshots.", 0.70)
+                };
+            });
         _chatService.GenerateAnswerAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns(ci => { callOrder.Add("chat"); return "No information available."; });
+            .Returns(ci => { callOrder.Add("chat"); return "Daily snapshots [Source: backup.md]."; });
 
         // Act
         await _orchestrator.AskAsync(question);
@@ -177,9 +211,12 @@ public class RagOrchestratorTests
         _embeddingService.GenerateEmbeddingAsync(Arg.Any<string>(), token)
             .Returns(FakeEmbedding);
         _retrievalService.SearchAsync(Arg.Any<string>(), Arg.Any<ReadOnlyMemory<float>>(), 5, token)
-            .Returns(new List<RetrievalResult>());
+            .Returns(new List<RetrievalResult>
+            {
+                MakeResult("backup.md", "Backups", "Daily snapshots.", 0.70)
+            });
         _chatService.GenerateAnswerAsync(Arg.Any<string>(), Arg.Any<string>(), token)
-            .Returns("Answer.");
+            .Returns("Daily snapshots [Source: backup.md].");
 
         // Act
         await _orchestrator.AskAsync("test", cancellationToken: token);
