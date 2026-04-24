@@ -114,10 +114,29 @@ public sealed class DocumentProcessor
                 {
                     throw;
                 }
-                catch (Exception ex)
+                catch (IOException ex)
                 {
-                    filesFailed++;
-                    _logger.LogError(ex, "Failed to process {FileName}; skipping file", fileName);
+                    RecordFileProcessingFailure(ex, fileName, ref filesFailed);
+                }
+                catch (UnauthorizedAccessException ex)
+                {
+                    RecordFileProcessingFailure(ex, fileName, ref filesFailed);
+                }
+                catch (InvalidDataException ex)
+                {
+                    RecordFileProcessingFailure(ex, fileName, ref filesFailed);
+                }
+                catch (FormatException ex)
+                {
+                    RecordFileProcessingFailure(ex, fileName, ref filesFailed);
+                }
+                catch (NotSupportedException ex)
+                {
+                    RecordFileProcessingFailure(ex, fileName, ref filesFailed);
+                }
+                catch (ArgumentException ex)
+                {
+                    RecordFileProcessingFailure(ex, fileName, ref filesFailed);
                 }
             }
 
@@ -185,6 +204,12 @@ public sealed class DocumentProcessor
             activity?.SetStatus(ActivityStatusCode.Error, ex.GetType().Name);
             throw;
         }
+    }
+
+    private void RecordFileProcessingFailure(Exception ex, string fileName, ref int filesFailed)
+    {
+        filesFailed++;
+        _logger.LogError(ex, "Failed to process {FileName}; skipping file", fileName);
     }
 
     private static string ExtractTitle(string content, string fileName)

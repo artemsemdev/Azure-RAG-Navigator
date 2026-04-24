@@ -110,8 +110,8 @@ public class LiveRetrievalEvaluationTests
         var repoRoot = FindRepoRoot();
         var folders = new[]
         {
-            Path.Combine(repoRoot, "sample-data"),
-            Path.Combine(repoRoot, "docs", "architecture")
+            Path.Join(repoRoot, "sample-data"),
+            Path.Join(repoRoot, "docs", "architecture")
         };
 
         var processor = serviceProvider.GetRequiredService<DocumentProcessor>();
@@ -155,7 +155,7 @@ public class LiveRetrievalEvaluationTests
         var dir = new DirectoryInfo(Directory.GetCurrentDirectory());
         while (dir is not null)
         {
-            if (File.Exists(Path.Combine(dir.FullName, "RAGNavigator.sln")))
+            if (File.Exists(Path.Join(dir.FullName, "RAGNavigator.sln")))
                 return dir.FullName;
 
             dir = dir.Parent;
