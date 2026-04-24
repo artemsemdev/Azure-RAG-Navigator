@@ -115,7 +115,10 @@ RAGNavigator/
 │   │   ├── Search/           # Azure AI Search (index + retrieval)
 │   │   └── Configuration/    # Strongly-typed options with validation
 │   └── Web/                  # ASP.NET Core Razor Pages + Minimal API
+│       ├── Configuration/     # Auth, telemetry, env mapping, rate limiting setup
+│       ├── Endpoints/         # Chat and index Minimal API endpoint modules
 │       ├── Middleware/        # SecurityHeadersMiddleware
+│       ├── Services/          # Web-only helpers such as document folder resolution
 │       └── Pages/            # Chat, Architecture, Decisions, Operations
 ├── tests/                    # xUnit tests (chunking, prompt assembly, integration)
 ├── infra/                    # Terraform IaC (Azure OpenAI + AI Search + App Service)
