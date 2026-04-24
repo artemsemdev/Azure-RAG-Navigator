@@ -1,9 +1,11 @@
 using System.Security.Cryptography;
 using System.Text;
+using System.Diagnostics;
 using Microsoft.Extensions.Logging;
 using RAGNavigator.Application.Configuration;
 using RAGNavigator.Application.Interfaces;
 using RAGNavigator.Application.Models;
+using RAGNavigator.Application.Observability;
 
 namespace RAGNavigator.Application.Services;
 
@@ -37,62 +39,120 @@ public sealed class RagOrchestrator
         bool includeDebugInfo = false,
         CancellationToken cancellationToken = default)
     {
+        var totalStopwatch = Stopwatch.StartNew();
+        using var activity = RagTelemetry.StartActivity("rag.query");
+        var questionFingerprint = CreateQuestionFingerprint(question);
+
+        activity?.SetTag("rag.question.length", question.Length);
+        activity?.SetTag("rag.question.fingerprint", questionFingerprint);
+        activity?.SetTag("rag.debug", includeDebugInfo);
+
         _logger.LogInformation(
             "Processing question ({QuestionLength} chars, fingerprint: {QuestionFingerprint})",
             question.Length,
-            CreateQuestionFingerprint(question));
+            questionFingerprint);
 
-        // Step 1: Generate embedding for the query
-        var queryEmbedding = await _embeddingService.GenerateEmbeddingAsync(question, cancellationToken);
-
-        // Step 2: Hybrid retrieval (keyword + vector) with semantic re-ranking
-        var results = await _retrievalService.SearchAsync(question, queryEmbedding, _options.TopK, cancellationToken);
-
-        // Filter out low-relevance results
-        var relevantResults = results
-            .Where(r => r.Score >= _options.MinimumRelevanceScore)
-            .ToList();
-
-        _logger.LogInformation("Retrieved {Count} relevant chunks (of {Total} total)",
-            relevantResults.Count, results.Count);
-
-        if (relevantResults.Count == 0)
+        try
         {
-            _logger.LogInformation("No relevant context found; returning deterministic insufficient-context response");
+            // Step 1: Generate embedding for the query
+            var embeddingStopwatch = Stopwatch.StartNew();
+            var queryEmbedding = await _embeddingService.GenerateEmbeddingAsync(question, cancellationToken);
+            embeddingStopwatch.Stop();
 
-            var emptyPrompt = includeDebugInfo
-                ? PromptBuilder.BuildUserPrompt(question, relevantResults)
-                : string.Empty;
+            // Step 2: Hybrid retrieval (keyword + vector) with semantic re-ranking
+            var searchStopwatch = Stopwatch.StartNew();
+            var results = await _retrievalService.SearchAsync(question, queryEmbedding, _options.TopK, cancellationToken);
+            searchStopwatch.Stop();
 
-            return new ChatResponse
+            // Filter out low-relevance results
+            var relevantResults = results
+                .Where(r => r.Score >= _options.MinimumRelevanceScore)
+                .ToList();
+
+            activity?.SetTag("rag.retrieved_chunks", results.Count);
+            activity?.SetTag("rag.relevant_chunks", relevantResults.Count);
+
+            _logger.LogInformation("Retrieved {Count} relevant chunks (of {Total} total)",
+                relevantResults.Count, results.Count);
+
+            if (relevantResults.Count == 0)
             {
-                Answer = PromptBuilder.InsufficientContextAnswer,
-                Citations = [],
-                Debug = includeDebugInfo ? BuildDebugInfo(relevantResults, emptyPrompt) : null
+                _logger.LogInformation("No relevant context found; returning deterministic insufficient-context response");
+
+                var emptyPrompt = includeDebugInfo
+                    ? PromptBuilder.BuildUserPrompt(question, relevantResults)
+                    : string.Empty;
+
+                totalStopwatch.Stop();
+                RagTelemetry.RecordQuery(
+                    totalStopwatch.Elapsed.TotalMilliseconds,
+                    embeddingStopwatch.Elapsed.TotalMilliseconds,
+                    searchStopwatch.Elapsed.TotalMilliseconds,
+                    llmDurationMs: 0,
+                    retrievedChunks: results.Count,
+                    relevantChunks: relevantResults.Count,
+                    citationsCount: 0,
+                    noContext: true,
+                    includeDebugInfo);
+
+                activity?.SetTag("rag.no_context", true);
+                activity?.SetStatus(ActivityStatusCode.Ok);
+
+                return new ChatResponse
+                {
+                    Answer = PromptBuilder.InsufficientContextAnswer,
+                    Citations = [],
+                    Debug = includeDebugInfo ? BuildDebugInfo(relevantResults, emptyPrompt) : null
+                };
+            }
+
+            // Step 3: Build grounded prompt
+            var userPrompt = PromptBuilder.BuildUserPrompt(question, relevantResults);
+
+            // Step 4: Generate answer
+            var llmStopwatch = Stopwatch.StartNew();
+            var answer = await _chatService.GenerateAnswerAsync(
+                PromptBuilder.SystemPrompt,
+                userPrompt,
+                cancellationToken);
+            llmStopwatch.Stop();
+
+            // Step 5: Extract citations
+            var citations = PromptBuilder.ExtractCitations(answer, relevantResults);
+
+            totalStopwatch.Stop();
+            RagTelemetry.RecordQuery(
+                totalStopwatch.Elapsed.TotalMilliseconds,
+                embeddingStopwatch.Elapsed.TotalMilliseconds,
+                searchStopwatch.Elapsed.TotalMilliseconds,
+                llmStopwatch.Elapsed.TotalMilliseconds,
+                retrievedChunks: results.Count,
+                relevantChunks: relevantResults.Count,
+                citationsCount: citations.Count,
+                noContext: false,
+                includeDebugInfo);
+
+            activity?.SetTag("rag.citations", citations.Count);
+            activity?.SetTag("rag.no_context", false);
+            activity?.SetStatus(ActivityStatusCode.Ok);
+
+            // Build response
+            var response = new ChatResponse
+            {
+                Answer = answer,
+                Citations = citations,
+                Debug = includeDebugInfo ? BuildDebugInfo(relevantResults, userPrompt) : null
             };
+
+            return response;
         }
-
-        // Step 3: Build grounded prompt
-        var userPrompt = PromptBuilder.BuildUserPrompt(question, relevantResults);
-
-        // Step 4: Generate answer
-        var answer = await _chatService.GenerateAnswerAsync(
-            PromptBuilder.SystemPrompt,
-            userPrompt,
-            cancellationToken);
-
-        // Step 5: Extract citations
-        var citations = PromptBuilder.ExtractCitations(answer, relevantResults);
-
-        // Build response
-        var response = new ChatResponse
+        catch (Exception ex)
         {
-            Answer = answer,
-            Citations = citations,
-            Debug = includeDebugInfo ? BuildDebugInfo(relevantResults, userPrompt) : null
-        };
-
-        return response;
+            totalStopwatch.Stop();
+            RagTelemetry.RecordQueryError(totalStopwatch.Elapsed.TotalMilliseconds, ex.GetType().Name);
+            activity?.SetStatus(ActivityStatusCode.Error, ex.GetType().Name);
+            throw;
+        }
     }
 
     private static DebugInfo BuildDebugInfo(IReadOnlyList<RetrievalResult> results, string fullPrompt)

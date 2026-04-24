@@ -21,6 +21,17 @@ All log messages use structured parameters (not string interpolation) for machin
 _logger.LogInformation("Produced {ChunkCount} chunks from {FileName}", chunks.Count, fileName);
 ```
 
+### Runtime Telemetry
+
+The application emits .NET `ActivitySource` spans and `System.Diagnostics.Metrics` instruments from the application layer:
+
+| Component | Activity | Metric Coverage |
+|-----------|----------|-----------------|
+| `RagOrchestrator` | `rag.query` | query count, error count, end-to-end latency, embedding latency, search latency, LLM latency, retrieved/relevant chunks, citation count, no-context count |
+| `DocumentProcessor` | `rag.ingestion` | ingestion duration, indexed chunks, processed files, ingestion errors |
+
+Telemetry tags intentionally avoid raw questions, prompts, document content, API keys, and file paths. Query traces include question length and a short SHA-256 fingerprint for correlation without logging the question text.
+
 ### Debug Mode
 
 The UI exposes a debug panel that shows:
@@ -44,6 +55,7 @@ Application → Application Insights SDK → Log Analytics Workspace → Grafana
 1. Add `Microsoft.ApplicationInsights.AspNetCore` package.
 2. Call `builder.Services.AddApplicationInsightsTelemetry()` in `Program.cs`.
 3. Configure the connection string via environment variable: `APPLICATIONINSIGHTS_CONNECTION_STRING`.
+4. Configure OpenTelemetry/Application Insights to listen to the `RAGNavigator` activity source and meter.
 
 This enables automatic collection of:
 - HTTP request telemetry (duration, status codes)
@@ -81,9 +93,9 @@ The Terraform deployment also supports platform diagnostic settings. When `log_a
 | Metric | Type | Description |
 |--------|------|-------------|
 | `ragnavigator.retrieval.chunks_returned` | Histogram | Chunks returned per query |
-| `ragnavigator.retrieval.max_score` | Histogram | Highest relevance score per query |
+| `ragnavigator.retrieval.chunks_relevant` | Histogram | Chunks remaining after relevance filtering |
 | `ragnavigator.citations.count` | Histogram | Citations per answer |
-| `ragnavigator.answer.no_info_rate` | Counter | Queries where the LLM said "not enough information" |
+| `ragnavigator.answer.no_info_count` | Counter | Queries that returned the deterministic insufficient-context answer |
 
 ## Distributed Tracing
 
