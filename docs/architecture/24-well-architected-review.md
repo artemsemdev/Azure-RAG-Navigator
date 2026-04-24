@@ -142,7 +142,7 @@ This review evaluates RAG Navigator against the five pillars of the Azure Well-A
 | Pillar | Score (1-5) | Key Strength | Key Gap |
 |--------|-------------|-------------|---------|
 | Reliability | 2 | Rebuildable index from source files | No health checks or circuit breakers |
-| Security | 2 | Managed identity support built in | No user auth, basic input validation |
+| Security | 3 | Managed identity and bearer auth support built in | No document-level authorization |
 | Cost Optimization | 3 | Right-sized resources, documented cost model | No cost monitoring or caching |
 | Operational Excellence | 3 | Strong logging, debug mode, runbook, CI baseline, OpenTelemetry export | No dashboards or alerts |
 | Performance Efficiency | 3 | Efficient batching and hybrid search | No streaming or caching |

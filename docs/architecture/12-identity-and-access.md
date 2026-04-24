@@ -8,11 +8,13 @@ Endpoint access is intentionally separate from Azure service access:
 
 | Endpoint | Current Auth | Production Direction |
 |----------|--------------|----------------------|
-| `POST /api/chat` | Optional `X-Chat-Key` when `Security:ChatApiKey` / `CHAT_API_KEY` is configured | Entra ID bearer tokens with user/group claims |
-| `POST /api/index/reindex` | `X-Admin-Key` when `Security:AdminApiKey` / `ADMIN_API_KEY` is configured; required outside Development | Entra ID admin role or managed operations job |
+| `POST /api/chat` | Optional `X-Chat-Key`, or JWT bearer tokens when `Security:AuthMode=Bearer` | Entra ID bearer tokens with user/group claims |
+| `POST /api/index/reindex` | `X-Admin-Key` in API-key mode, or JWT bearer token with configured admin role in bearer mode | Entra ID admin role or managed operations job |
 | Read-only pages / document list | Anonymous demo access | Entra ID or network-restricted internal app |
 
 Set `Security:RequireChatApiKey=true` / `REQUIRE_CHAT_API_KEY=true` to make `/api/chat` fail closed if the chat API key is not configured.
+
+Set `Security:AuthMode=Bearer` / `AUTH_MODE=Bearer` with `Security:Jwt:Authority` and `Security:Jwt:Audience` to enable Entra-compatible bearer authentication. The reindex endpoint additionally requires one of `Security:Jwt:AdminRoles` (default: `RAGNavigator.Admin`).
 
 ### Local Development: API Keys
 
@@ -133,7 +135,7 @@ The current implementation provides API-key endpoint gates but does not yet mode
 
 | Approach | Implementation |
 |----------|---------------|
-| **Azure AD / Entra ID** | Add `Microsoft.Identity.Web` middleware. Require bearer tokens on API endpoints. |
+| **Azure AD / Entra ID** | Configure bearer auth mode with the tenant authority, API audience, and app roles. |
 | **Document-level access** | Add user group claims to the token. Filter search results by user's groups. |
 | **Audit logging** | Log the authenticated user ID with each query for compliance. |
 

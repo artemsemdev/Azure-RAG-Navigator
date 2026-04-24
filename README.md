@@ -226,7 +226,7 @@ Click **Reindex** in the sidebar to index all documents, then ask questions.
 | **DefaultAzureCredential** | Azure / `az login` | Leave API key vars empty |
 | **Managed Identity** | Production | Assign RBAC roles, no keys needed |
 
-For endpoint access, `/api/chat` is anonymous by default for local demo use. Set `CHAT_API_KEY` to require `X-Chat-Key` on chat requests; set `REQUIRE_CHAT_API_KEY=true` to fail closed if the key is missing. Reindex remains protected by `X-Admin-Key` when `ADMIN_API_KEY` is configured.
+For endpoint access, `/api/chat` is anonymous by default for local demo use. Set `CHAT_API_KEY` to require `X-Chat-Key` on chat requests; set `REQUIRE_CHAT_API_KEY=true` to fail closed if the key is missing. Reindex remains protected by `X-Admin-Key` when `ADMIN_API_KEY` is configured. Set `AUTH_MODE=Bearer`, `JWT_AUTHORITY`, and `JWT_AUDIENCE` to require Entra-compatible bearer tokens on chat and reindex endpoints; reindex also requires one of `Security:Jwt:AdminRoles`.
 
 **Required RBAC roles (production):**
 - **Cognitive Services OpenAI User** on the Azure OpenAI resource
@@ -242,6 +242,7 @@ For endpoint access, `/api/chat` is anonymous by default for local demo use. Set
 | **CSRF protection** | Content-Type validation (JSON-only on POST endpoints) |
 | **Chat protection** | Optional `X-Chat-Key` fixed-time validation via `CHAT_API_KEY` |
 | **Admin protection** | `X-Admin-Key` header required for reindex endpoint outside Development; fixed-time validation |
+| **Bearer auth mode** | Optional JWT bearer authentication for Entra-compatible production deployments |
 | **Debug mode gating** | Disabled in production; system prompt stripped from debug output |
 | **Input sanitization** | Control character stripping, invisible Unicode removal, whitespace normalization |
 | **Error handling** | Generic error responses in production — no stack traces or Azure SDK details |

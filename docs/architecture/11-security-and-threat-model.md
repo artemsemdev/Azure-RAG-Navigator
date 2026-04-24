@@ -98,6 +98,10 @@ The `POST /api/index/reindex` endpoint requires an `X-Admin-Key` header matching
 
 The `POST /api/chat` endpoint is anonymous by default for local demo use. When `CHAT_API_KEY` / `Security:ChatApiKey` is configured, chat requests must include `X-Chat-Key`. Validation uses the same SHA-256 plus fixed-time comparison pattern as the admin key. If `REQUIRE_CHAT_API_KEY=true` is set without a configured key, the chat endpoint fails closed with HTTP 503.
 
+### Bearer Authentication Mode
+
+For production-style deployments, `Security:AuthMode=Bearer` enables JWT bearer authentication using `Security:Jwt:Authority` and `Security:Jwt:Audience`. In this mode, chat requests require an authenticated token and reindex requests require an authenticated token with one of the configured admin roles. If bearer mode is selected without authority or audience, startup fails closed.
+
 ### Debug Mode Gating
 
 - Debug mode is **disabled by default** in production (enabled only in Development environment or when `Security:DebugModeEnabled` is explicitly set to `true`).
@@ -250,5 +254,5 @@ The `POST /api/chat` endpoint is anonymous by default for local demo use. When `
 | App → Azure OpenAI | API key (full access) | Managed identity + "Cognitive Services OpenAI User" role |
 | App → Azure AI Search | API key (admin access) | Managed identity + "Search Index Data Contributor" role |
 | App → File System | OS user permissions | Read-only mount in container |
-| End User → App | Optional API key (`X-Chat-Key`) + rate limiting | Azure AD authentication + RBAC |
-| Admin → Reindex | API key (`X-Admin-Key` header) | Azure AD with admin role |
+| End User → App | Optional API key or bearer token + rate limiting | Azure AD authentication + RBAC |
+| Admin → Reindex | API key or bearer token with admin role | Azure AD with admin role |

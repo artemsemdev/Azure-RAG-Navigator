@@ -212,6 +212,20 @@ public class WebSecurityTests : IClassFixture<WebSecurityTests.TestWebFactory>
         Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
     }
 
+    [Fact]
+    public async Task ChatApi_BearerAuthMode_RejectsAnonymousRequest()
+    {
+        var client = _factory.WithWebHostBuilder(builder =>
+        {
+            ConfigureBearerAuth(builder);
+        }).CreateClient();
+
+        var response = await client.PostAsJsonAsync("/api/chat",
+            new { question = "What is our SLA?" });
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
     // --- Prompt Injection Logging (still returns 200 but input is sanitized) ---
 
     [Fact]
@@ -272,6 +286,20 @@ public class WebSecurityTests : IClassFixture<WebSecurityTests.TestWebFactory>
         Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
     }
 
+    [Fact]
+    public async Task ReindexApi_BearerAuthMode_RejectsAnonymousBeforeAdminKeyCheck()
+    {
+        var client = _factory.WithWebHostBuilder(builder =>
+        {
+            ConfigureBearerAuth(builder);
+            builder.UseSetting("Security:AdminApiKey", "");
+        }).CreateClient();
+
+        var response = await client.PostAsync("/api/index/reindex", null);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
     // --- Debug Mode Gating ---
 
     [Fact]
@@ -327,6 +355,14 @@ public class WebSecurityTests : IClassFixture<WebSecurityTests.TestWebFactory>
     }
 
     // --- Helper DTOs ---
+
+    private static void ConfigureBearerAuth(Microsoft.AspNetCore.Hosting.IWebHostBuilder builder)
+    {
+        builder.UseSetting("Security:AuthMode", "Bearer");
+        builder.UseSetting("Security:Jwt:Authority", "https://login.microsoftonline.com/test-tenant/v2.0");
+        builder.UseSetting("Security:Jwt:Audience", "api://rag-navigator-test");
+        builder.UseSetting("Security:Jwt:AdminRoles:0", "RAGNavigator.Admin");
+    }
 
     private sealed class ChatResponseDto
     {

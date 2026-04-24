@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Threading.RateLimiting;
 using Azure.Monitor.OpenTelemetry.AspNetCore;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.RateLimiting;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Trace;
@@ -17,8 +18,11 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Configuration.AddEnvironmentVariables();
 MapEnvironmentVariables(builder.Configuration);
 
+var endpointAuth = BindEndpointAuthOptions(builder.Configuration);
+
 builder.Services.AddRazorPages();
 builder.Services.AddRAGNavigatorServices(builder.Configuration);
+AddEndpointAuthentication(builder.Services, endpointAuth, builder.Environment);
 AddTelemetryExport(builder.Services, builder.Configuration);
 
 // --- Rate Limiting (per-IP) ---
@@ -70,6 +74,12 @@ app.UseSecurityHeaders();
 app.UseStaticFiles();
 app.UseRouting();
 app.UseRateLimiter(); // After UseRouting so endpoint rate limit policies are visible
+if (endpointAuth.UseBearer)
+{
+    app.UseAuthentication();
+    app.UseAuthorization();
+}
+
 app.MapRazorPages();
 
 // --- Configuration ---
@@ -80,7 +90,7 @@ var requireChatApiKey = app.Configuration.GetValue("Security:RequireChatApiKey",
 
 // --- API Endpoints ---
 
-app.MapPost("/api/chat", async (
+var chatEndpoint = app.MapPost("/api/chat", async (
     HttpContext httpContext,
     ChatRequest request,
     RagOrchestrator orchestrator,
@@ -136,7 +146,10 @@ app.MapPost("/api/chat", async (
 })
 .RequireRateLimiting("chat");
 
-app.MapPost("/api/index/reindex", async (
+if (endpointAuth.UseBearer)
+    chatEndpoint.RequireAuthorization("chat-user");
+
+var reindexEndpoint = app.MapPost("/api/index/reindex", async (
     HttpContext httpContext,
     DocumentProcessor processor,
     IConfiguration configuration,
@@ -144,25 +157,28 @@ app.MapPost("/api/index/reindex", async (
     CancellationToken cancellationToken) =>
 {
     // Admin key protection: reindex is a privileged operation
-    if (string.IsNullOrEmpty(adminKey))
+    if (!endpointAuth.UseBearer)
     {
-        if (!app.Environment.IsDevelopment())
+        if (string.IsNullOrEmpty(adminKey))
         {
-            logger.LogError("Reindex endpoint disabled because Security:AdminApiKey is not configured.");
-            return Results.Json(
-                new { error = "Reindex is not configured." },
-                statusCode: StatusCodes.Status503ServiceUnavailable);
+            if (!app.Environment.IsDevelopment())
+            {
+                logger.LogError("Reindex endpoint disabled because Security:AdminApiKey is not configured.");
+                return Results.Json(
+                    new { error = "Reindex is not configured." },
+                    statusCode: StatusCodes.Status503ServiceUnavailable);
+            }
         }
-    }
-    else
-    {
-        var providedKey = httpContext.Request.Headers["X-Admin-Key"].FirstOrDefault();
-        if (!IsAdminKeyValid(providedKey, adminKey))
+        else
         {
-            logger.LogWarning(
-                "Unauthorized reindex attempt from {IP}",
-                httpContext.Connection.RemoteIpAddress);
-            return Results.Json(new { error = "Unauthorized." }, statusCode: StatusCodes.Status401Unauthorized);
+            var providedKey = httpContext.Request.Headers["X-Admin-Key"].FirstOrDefault();
+            if (!IsAdminKeyValid(providedKey, adminKey))
+            {
+                logger.LogWarning(
+                    "Unauthorized reindex attempt from {IP}",
+                    httpContext.Connection.RemoteIpAddress);
+                return Results.Json(new { error = "Unauthorized." }, statusCode: StatusCodes.Status401Unauthorized);
+            }
         }
     }
 
@@ -212,6 +228,9 @@ app.MapPost("/api/index/reindex", async (
     });
 })
 .RequireRateLimiting("reindex");
+
+if (endpointAuth.UseBearer)
+    reindexEndpoint.RequireAuthorization("reindex-admin");
 
 app.MapGet("/api/index/documents", async (
     RAGNavigator.Application.Interfaces.ISearchIndexService indexService,
@@ -303,6 +322,9 @@ static void MapEnvironmentVariables(ConfigurationManager config)
         ["ADMIN_API_KEY"] = "Security:AdminApiKey",
         ["CHAT_API_KEY"] = "Security:ChatApiKey",
         ["REQUIRE_CHAT_API_KEY"] = "Security:RequireChatApiKey",
+        ["AUTH_MODE"] = "Security:AuthMode",
+        ["JWT_AUTHORITY"] = "Security:Jwt:Authority",
+        ["JWT_AUDIENCE"] = "Security:Jwt:Audience",
         ["APPLICATIONINSIGHTS_CONNECTION_STRING"] = "Observability:ApplicationInsightsConnectionString"
     };
 
@@ -312,6 +334,59 @@ static void MapEnvironmentVariables(ConfigurationManager config)
         if (!string.IsNullOrEmpty(value))
             config[configKey] = value;
     }
+}
+
+static EndpointAuthOptions BindEndpointAuthOptions(IConfiguration configuration)
+{
+    var mode = configuration.GetValue("Security:AuthMode", "ApiKey");
+    if (!string.Equals(mode, "ApiKey", StringComparison.OrdinalIgnoreCase) &&
+        !string.Equals(mode, "Bearer", StringComparison.OrdinalIgnoreCase))
+    {
+        throw new InvalidOperationException("Security:AuthMode must be either 'ApiKey' or 'Bearer'.");
+    }
+
+    var options = new EndpointAuthOptions(
+        Mode: mode,
+        Authority: configuration.GetValue<string>("Security:Jwt:Authority"),
+        Audience: configuration.GetValue<string>("Security:Jwt:Audience"),
+        AdminRoles: configuration.GetSection("Security:Jwt:AdminRoles").Get<string[]>() ?? ["RAGNavigator.Admin"]);
+
+    if (options.UseBearer &&
+        (string.IsNullOrWhiteSpace(options.Authority) || string.IsNullOrWhiteSpace(options.Audience)))
+    {
+        throw new InvalidOperationException(
+            "Security:Jwt:Authority and Security:Jwt:Audience are required when Security:AuthMode is 'Bearer'.");
+    }
+
+    return options;
+}
+
+static void AddEndpointAuthentication(
+    IServiceCollection services,
+    EndpointAuthOptions options,
+    IWebHostEnvironment environment)
+{
+    if (!options.UseBearer)
+        return;
+
+    services
+        .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+        .AddJwtBearer(jwt =>
+        {
+            jwt.Authority = options.Authority;
+            jwt.Audience = options.Audience;
+            jwt.RequireHttpsMetadata = !environment.IsDevelopment();
+        });
+
+    services.AddAuthorization(auth =>
+    {
+        auth.AddPolicy("chat-user", policy => policy.RequireAuthenticatedUser());
+        auth.AddPolicy("reindex-admin", policy =>
+        {
+            policy.RequireAuthenticatedUser();
+            policy.RequireRole(options.AdminRoles);
+        });
+    });
 }
 
 static void AddTelemetryExport(IServiceCollection services, IConfiguration configuration)
@@ -351,3 +426,12 @@ public record ChatRequest(string Question, bool DebugMode = false);
 
 // Required for WebApplicationFactory<Program> in integration tests
 public partial class Program { }
+
+sealed record EndpointAuthOptions(
+    string Mode,
+    string? Authority,
+    string? Audience,
+    IReadOnlyList<string> AdminRoles)
+{
+    public bool UseBearer => string.Equals(Mode, "Bearer", StringComparison.OrdinalIgnoreCase);
+}
